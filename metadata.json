@@ -1,0 +1,6 @@
+{
+  "name": "AgroSense-X",
+  "description": "Pre-Symptomatic Plant Stress Detection System using AI analyze and sensor telemetry monitoring.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
