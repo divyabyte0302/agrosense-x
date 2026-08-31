@@ -14,9 +14,12 @@ import com.example.data.model.*
         Prediction::class,
         HealthHistory::class,
         PlantAlert::class,
-        ScanFeedback::class
+        ScanFeedback::class,
+        LiveWeatherTelemetry::class,
+        PlantingCalendarEntry::class,
+        CropCareReminder::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 abstract class AgroDatabase : RoomDatabase() {

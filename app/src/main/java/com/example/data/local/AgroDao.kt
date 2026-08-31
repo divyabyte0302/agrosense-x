@@ -11,6 +11,9 @@ interface AgroDao {
     @Query("SELECT * FROM users WHERE id = :userId LIMIT 1")
     fun getUserById(userId: String): Flow<User?>
 
+    @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
+    suspend fun getUserByEmail(email: String): User?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: User)
 
@@ -27,8 +30,17 @@ interface AgroDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlant(plant: Plant): Long
 
+    @Update
+    suspend fun updatePlant(plant: Plant)
+
     @Delete
     suspend fun deletePlant(plant: Plant)
+
+    @Query("DELETE FROM plants WHERE id = :plantId")
+    suspend fun deletePlantById(plantId: Long)
+
+    @Query("DELETE FROM plants")
+    suspend fun clearPlants()
 
     // --- Sensor Data ---
     @Query("SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT 1")
@@ -40,6 +52,12 @@ interface AgroDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSensorData(sensorData: SensorData)
 
+    @Update
+    suspend fun updateSensorData(sensorData: SensorData)
+
+    @Query("DELETE FROM sensor_data WHERE id = :sensorId")
+    suspend fun deleteSensorDataById(sensorId: Long)
+
     @Query("DELETE FROM sensor_data")
     suspend fun clearSensorData()
 
@@ -50,12 +68,33 @@ interface AgroDao {
     @Query("SELECT * FROM predictions ORDER BY timestamp DESC")
     fun getAllPredictions(): Flow<List<Prediction>>
 
+    @Query("SELECT * FROM predictions WHERE id = :predictionId LIMIT 1")
+    fun getPredictionById(predictionId: Long): Flow<Prediction?>
+
+    @Query("SELECT * FROM predictions WHERE plantId = :plantId ORDER BY timestamp DESC LIMIT 1")
+    fun getLatestPredictionForPlant(plantId: Long): Flow<Prediction?>
+
+    @Query("SELECT * FROM predictions ORDER BY timestamp DESC LIMIT 1")
+    fun getLatestPrediction(): Flow<Prediction?>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPrediction(prediction: Prediction): Long
+
+    @Update
+    suspend fun updatePrediction(prediction: Prediction)
+
+    @Query("DELETE FROM predictions WHERE id = :predictionId")
+    suspend fun deletePrediction(predictionId: Long)
+
+    @Query("DELETE FROM predictions")
+    suspend fun clearPredictions()
 
     // --- Health History ---
     @Query("SELECT * FROM health_history WHERE plantId = :plantId ORDER BY timestamp ASC")
     fun getHealthHistoryForPlant(plantId: Long): Flow<List<HealthHistory>>
+
+    @Query("SELECT * FROM health_history WHERE plantId = :plantId ORDER BY timestamp DESC LIMIT 1")
+    fun getLatestHealthForPlant(plantId: Long): Flow<HealthHistory?>
 
     @Query("SELECT * FROM health_history ORDER BY timestamp ASC")
     fun getAllHealthHistory(): Flow<List<HealthHistory>>
@@ -65,6 +104,12 @@ interface AgroDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHealthHistories(histories: List<HealthHistory>)
+
+    @Update
+    suspend fun updateHealthHistory(history: HealthHistory)
+
+    @Query("DELETE FROM health_history WHERE id = :historyId")
+    suspend fun deleteHealthHistoryById(historyId: Long)
 
     @Query("DELETE FROM health_history")
     suspend fun clearHealthHistory()
@@ -79,11 +124,17 @@ interface AgroDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAlert(alert: PlantAlert)
 
+    @Update
+    suspend fun updateAlert(alert: PlantAlert)
+
     @Query("UPDATE alerts SET isRead = 1 WHERE id = :alertId")
     suspend fun markAlertAsRead(alertId: Long)
 
     @Query("UPDATE alerts SET isRead = 1")
     suspend fun markAllAlertsAsRead()
+
+    @Query("DELETE FROM alerts WHERE id = :alertId")
+    suspend fun deleteAlertById(alertId: Long)
 
     @Query("DELETE FROM alerts")
     suspend fun clearAlerts()
@@ -101,7 +152,82 @@ interface AgroDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFeedback(feedback: ScanFeedback): Long
 
+    @Update
+    suspend fun updateFeedback(feedback: ScanFeedback)
+
+    @Query("DELETE FROM feedback WHERE id = :feedbackId")
+    suspend fun deleteFeedbackById(feedbackId: Long)
+
     @Query("DELETE FROM feedback")
     suspend fun clearFeedback()
+
+    // --- Live Weather Telemetry ---
+    @Query("SELECT * FROM weather_telemetry WHERE id = 1 LIMIT 1")
+    fun getLiveWeatherTelemetry(): Flow<LiveWeatherTelemetry?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLiveWeather(weather: LiveWeatherTelemetry)
+
+    @Query("DELETE FROM weather_telemetry")
+    suspend fun clearLiveWeather()
+
+    // --- Planting Calendar Entries ---
+    @Query("SELECT * FROM planting_calendar WHERE isArchived = 0 ORDER BY plantingTimestamp DESC")
+    fun getActivePlantingEntries(): Flow<List<PlantingCalendarEntry>>
+
+    @Query("SELECT * FROM planting_calendar ORDER BY plantingTimestamp DESC")
+    fun getAllPlantingEntries(): Flow<List<PlantingCalendarEntry>>
+
+    @Query("SELECT * FROM planting_calendar WHERE id = :id LIMIT 1")
+    suspend fun getPlantingEntryById(id: Long): PlantingCalendarEntry?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPlantingEntry(entry: PlantingCalendarEntry): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPlantingEntries(entries: List<PlantingCalendarEntry>)
+
+    @Update
+    suspend fun updatePlantingEntry(entry: PlantingCalendarEntry)
+
+    @Query("UPDATE planting_calendar SET currentStageKey = :stageKey, stageProgressPercent = :progress, accumulatedGdd = :gdd, lastUpdated = :now WHERE id = :id")
+    suspend fun updatePlantingStage(id: Long, stageKey: String, progress: Int, gdd: Float, now: Long = System.currentTimeMillis())
+
+    @Query("DELETE FROM planting_calendar WHERE id = :id")
+    suspend fun deletePlantingEntryById(id: Long)
+
+    @Query("DELETE FROM planting_calendar")
+    suspend fun clearPlantingCalendar()
+
+    // --- Crop Care Reminders ---
+    @Query("SELECT * FROM care_reminders ORDER BY isCompleted ASC, dueTimestamp ASC")
+    fun getAllCareReminders(): Flow<List<CropCareReminder>>
+
+    @Query("SELECT * FROM care_reminders WHERE isCompleted = 0 ORDER BY dueTimestamp ASC")
+    fun getActiveCareReminders(): Flow<List<CropCareReminder>>
+
+    @Query("SELECT * FROM care_reminders WHERE calendarEntryId = :calendarEntryId ORDER BY dueTimestamp ASC")
+    fun getRemindersForCrop(calendarEntryId: Long): Flow<List<CropCareReminder>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCareReminder(reminder: CropCareReminder): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCareReminders(reminders: List<CropCareReminder>)
+
+    @Update
+    suspend fun updateCareReminder(reminder: CropCareReminder)
+
+    @Query("UPDATE care_reminders SET isCompleted = :completed, completedTimestamp = :completedTime WHERE id = :reminderId")
+    suspend fun setCareReminderCompletion(reminderId: Long, completed: Boolean, completedTime: Long? = if (completed) System.currentTimeMillis() else null)
+
+    @Query("DELETE FROM care_reminders WHERE id = :reminderId")
+    suspend fun deleteCareReminderById(reminderId: Long)
+
+    @Query("DELETE FROM care_reminders WHERE calendarEntryId = :calendarEntryId")
+    suspend fun deleteRemindersForCrop(calendarEntryId: Long)
+
+    @Query("DELETE FROM care_reminders")
+    suspend fun clearCareReminders()
 }
 

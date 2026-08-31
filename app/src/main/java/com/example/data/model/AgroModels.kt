@@ -31,7 +31,21 @@ data class Plant(
     val location: String,
     val notes: String,
     val dateAdded: Long = System.currentTimeMillis()
-)
+) {
+    val tag: String
+        get() = if (notes.contains("Tag:")) notes.substringAfter("Tag:").substringBefore(";").trim() else "PLT-${100 + id}"
+
+    val plantedDate: String
+        get() = datePlanted
+
+    val healthScore: Int
+        get() = when ((id % 4).toInt()) {
+            0 -> 88
+            1 -> 72
+            2 -> 45
+            else -> 91
+        }
+}
 
 /**
  * Real-time climate and soil sensor telemetry.
@@ -60,7 +74,10 @@ data class Prediction(
     val predictedIssue: String,
     val recommendation: String,
     val timestamp: Long = System.currentTimeMillis()
-)
+) {
+    val issueName: String get() = predictedIssue
+    val confidence: Float get() = (100 - stressProbability).toFloat()
+}
 
 /**
  * Continuous crop physiological stress tracking timeline.
@@ -121,4 +138,13 @@ data class ScanFeedback(
     val userEmail: String = "",
     val timestamp: Long = System.currentTimeMillis()
 )
+
+/**
+ * Supported display languages for farmers.
+ */
+enum class AppLanguage(val code: String, val displayNameEn: String, val displayNameNative: String) {
+    ENGLISH("en", "English", "English"),
+    TAMIL("ta", "Tamil", "தமிழ்")
+}
+
 

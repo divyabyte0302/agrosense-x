@@ -57,6 +57,15 @@ object RetrofitClients {
             .create(GeminiApiService::class.java)
     }
 
+    val weatherService: WeatherApiService by lazy {
+        Retrofit.Builder()
+            .baseUrl("https://api.open-meteo.com/")
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+            .create(WeatherApiService::class.java)
+    }
+
     /**
      * Create a FastAPI Service instance with a dynamic host address provided by the user.
      */
