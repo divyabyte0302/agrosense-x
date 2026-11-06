@@ -2,6 +2,7 @@ package com.example.data.model
 
 import androidx.compose.ui.graphics.Color
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.ui.theme.*
 import com.squareup.moshi.JsonClass
@@ -147,7 +148,14 @@ enum class CareTaskType(
 /**
  * Room Database entity representing a registered crop lifecycle planting entry.
  */
-@Entity(tableName = "planting_calendar")
+@Entity(
+    tableName = "planting_calendar",
+    indices = [
+        Index(value = ["isArchived", "plantingTimestamp"]),
+        Index(value = ["speciesKey"]),
+        Index(value = ["cropName"])
+    ]
+)
 @JsonClass(generateAdapter = true)
 data class PlantingCalendarEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -174,7 +182,14 @@ data class PlantingCalendarEntry(
 /**
  * Room Database entity representing a scheduled or climate-triggered care task reminder.
  */
-@Entity(tableName = "care_reminders")
+@Entity(
+    tableName = "care_reminders",
+    indices = [
+        Index(value = ["calendarEntryId", "dueTimestamp"]),
+        Index(value = ["isCompleted", "dueTimestamp"]),
+        Index(value = ["taskTypeKey"])
+    ]
+)
 @JsonClass(generateAdapter = true)
 data class CropCareReminder(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

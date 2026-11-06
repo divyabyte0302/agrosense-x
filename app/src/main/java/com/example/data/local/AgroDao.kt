@@ -49,14 +49,23 @@ interface AgroDao {
     @Query("SELECT * FROM sensor_data ORDER BY timestamp DESC")
     fun getAllSensorData(): Flow<List<SensorData>>
 
+    @Query("SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
+    suspend fun getSensorDataPaged(limit: Int, offset: Int): List<SensorData>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSensorData(sensorData: SensorData)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSensorDataBatch(sensorDataList: List<SensorData>)
 
     @Update
     suspend fun updateSensorData(sensorData: SensorData)
 
     @Query("DELETE FROM sensor_data WHERE id = :sensorId")
     suspend fun deleteSensorDataById(sensorId: Long)
+
+    @Query("DELETE FROM sensor_data WHERE timestamp < :cutoffTimestamp")
+    suspend fun pruneOldSensorData(cutoffTimestamp: Long): Int
 
     @Query("DELETE FROM sensor_data")
     suspend fun clearSensorData()
@@ -77,11 +86,20 @@ interface AgroDao {
     @Query("SELECT * FROM predictions ORDER BY timestamp DESC LIMIT 1")
     fun getLatestPrediction(): Flow<Prediction?>
 
+    @Query("SELECT * FROM predictions WHERE plantId = :plantId ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
+    suspend fun getPredictionsForPlantPaged(plantId: Long, limit: Int, offset: Int): List<Prediction>
+
+    @Query("SELECT COUNT(*) FROM predictions WHERE plantId = :plantId")
+    suspend fun getPredictionsCountForPlant(plantId: Long): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPrediction(prediction: Prediction): Long
 
     @Update
     suspend fun updatePrediction(prediction: Prediction)
+
+    @Query("UPDATE predictions SET isConfirmed = :confirmed WHERE id = :predictionId")
+    suspend fun updatePredictionConfirmation(predictionId: Long, confirmed: Boolean)
 
     @Query("DELETE FROM predictions WHERE id = :predictionId")
     suspend fun deletePrediction(predictionId: Long)

@@ -309,7 +309,7 @@ fun FeedbackScreen(
                     modifier = Modifier.padding(top = 4.dp, bottom = 14.dp)
                 )
 
-                Divider(color = SoftGrass)
+                HorizontalDivider(color = SoftGrass)
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Crop / Plant Selection

@@ -262,4 +262,82 @@ class AgroSenseRoomAndWorkflowTest {
         assertEquals(5, feedbacks[0].recommendationAccuracyRating)
         assertEquals("San Marzano Heirloom #1", feedbacks[0].plantName)
     }
+
+    @Test
+    fun testBatchInsertPaginationAndPruningPerformance() = runBlocking {
+        // 1. Batch Insert 100 Sensor telemetry readings
+        val now = System.currentTimeMillis()
+        val oneHour = 3600_000L
+        val batch = (1..100).map { i ->
+            SensorData(
+                id = i.toLong(),
+                temperature = 20f + (i % 15),
+                humidity = 50f + (i % 30),
+                soilMoisture = 30f + (i % 40),
+                timestamp = now - (i * oneHour)
+            )
+        }
+        val startTime = System.currentTimeMillis()
+        dao.insertSensorDataBatch(batch)
+        val insertDuration = System.currentTimeMillis() - startTime
+        assertTrue("Batch insert of 100 records should be efficient (< 2000ms)", insertDuration < 2000)
+
+        // 2. Pagination verification
+        val page1 = dao.getSensorDataPaged(limit = 10, offset = 0)
+        assertEquals(10, page1.size)
+        // Verify order is timestamp DESC
+        assertTrue(page1[0].timestamp >= page1[1].timestamp)
+
+        val page2 = dao.getSensorDataPaged(limit = 10, offset = 10)
+        assertEquals(10, page2.size)
+        assertTrue(page1[9].timestamp >= page2[0].timestamp)
+
+        // 3. Paginated predictions and confirmation verification
+        dao.insertPrediction(
+            Prediction(
+                id = 201L,
+                plantId = 10L,
+                imageUrl = "local://leaf_201.jpg",
+                healthScore = 85,
+                stressProbability = 15,
+                predictedIssue = "Optimal Photosynthesis",
+                recommendation = "Continue standard photoperiod",
+                timestamp = now,
+                modelVersion = "MobileNetV4-Agro-v2.1",
+                isConfirmed = false
+            )
+        )
+        dao.insertPrediction(
+            Prediction(
+                id = 202L,
+                plantId = 10L,
+                imageUrl = "local://leaf_202.jpg",
+                healthScore = 65,
+                stressProbability = 35,
+                predictedIssue = "Water Deficit Stress",
+                recommendation = "Increase irrigation cycle",
+                timestamp = now + 1000,
+                modelVersion = "MobileNetV4-Agro-v2.1",
+                isConfirmed = false
+            )
+        )
+
+        val predCount = dao.getPredictionsCountForPlant(10L)
+        assertEquals(2, predCount)
+
+        val pagedPredictions = dao.getPredictionsForPlantPaged(10L, limit = 1, offset = 0)
+        assertEquals(1, pagedPredictions.size)
+        assertEquals(202L, pagedPredictions[0].id)
+        assertFalse(pagedPredictions[0].isConfirmed)
+
+        // Update confirmation
+        dao.updatePredictionConfirmation(202L, true)
+        val pagedAfterConfirm = dao.getPredictionsForPlantPaged(10L, limit = 1, offset = 0)
+        assertTrue(pagedAfterConfirm[0].isConfirmed)
+
+        // 4. Data retention pruning (prune older than 50 hours)
+        val cutoff = now - (50 * oneHour)
+        val prunedCount = dao.pruneOldSensorData(cutoff)
+        assertTrue("Should prune records older than cutoff (> 40 records)", prunedCount > 40)
+    }
 }

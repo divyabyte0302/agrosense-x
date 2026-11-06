@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -64,6 +65,7 @@ import coil.compose.AsyncImage
 import com.example.data.model.*
 import com.example.ui.components.PlantGrowthStageTimelineComponent
 import com.example.ui.components.ScannedPlantIdentificationCard
+import com.example.ui.components.TelemetryRechartsCard
 import com.example.ui.theme.*
 import com.example.ui.translation.*
 import com.example.ui.viewmodel.*
@@ -80,13 +82,19 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
     val userState by viewModel.userState.collectAsStateWithLifecycle()
     val unreadCount by viewModel.unreadAlertsCount.collectAsStateWithLifecycle()
 
-    // Strict route authentication guard: Without login the app must not go to any main module
+    // Strict route authentication guard: Redirect to auth if null, or to dashboard if session exists
     LaunchedEffect(userState) {
+        val currentRoute = navController.currentBackStackEntry?.destination?.route
         if (userState == null) {
-            val currentRoute = navController.currentBackStackEntry?.destination?.route
             if (currentRoute != null && currentRoute != "auth") {
                 navController.navigate("auth") {
                     popUpTo(0) { inclusive = true }
+                }
+            }
+        } else {
+            if (currentRoute == "auth") {
+                navController.navigate("dashboard") {
+                    popUpTo("auth") { inclusive = true }
                 }
             }
         }
@@ -458,7 +466,7 @@ fun AppShell(
                             )
                             DropdownMenuItem(
                                 text = { Text(AgroStrings.get("guided_tour", appLanguage), color = TextLight, fontSize = 13.sp) },
-                                leadingIcon = { Icon(Icons.Filled.HelpOutline, null, tint = GlowingEmerald, modifier = Modifier.size(18.dp)) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.HelpOutline, null, tint = GlowingEmerald, modifier = Modifier.size(18.dp)) },
                                 onClick = {
                                     showMenu = false
                                     showOnboarding = true
@@ -525,13 +533,24 @@ fun AppShell(
             }
         },
         bottomBar = {
+            val navigateTab: (String) -> Unit = { targetRoute ->
+                if (navController.currentDestination?.route != targetRoute) {
+                    navController.navigate(targetRoute) {
+                        popUpTo("dashboard") {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            }
             NavigationBar(
                 containerColor = DeepForestBg,
                 tonalElevation = 8.dp
             ) {
                 NavigationBarItem(
                     selected = activeRoute == "home",
-                    onClick = { navController.navigate("dashboard") },
+                    onClick = { navigateTab("dashboard") },
                     icon = { Icon(Icons.Filled.Home, "Overview", modifier = Modifier.size(20.dp)) },
                     label = { Text(AgroStrings.get("nav_home", appLanguage), fontSize = 10.sp, maxLines = 1) },
                     colors = NavigationBarItemDefaults.colors(
@@ -545,7 +564,7 @@ fun AppShell(
 
                 NavigationBarItem(
                     selected = activeRoute == "plants",
-                    onClick = { navController.navigate("plants") },
+                    onClick = { navigateTab("plants") },
                     icon = { Icon(Icons.Filled.Eco, "Plants", modifier = Modifier.size(20.dp)) },
                     label = { Text(AgroStrings.get("nav_plants", appLanguage), fontSize = 10.sp, maxLines = 1) },
                     colors = NavigationBarItemDefaults.colors(
@@ -559,7 +578,7 @@ fun AppShell(
 
                 NavigationBarItem(
                     selected = activeRoute == "scanner",
-                    onClick = { navController.navigate("scanner") },
+                    onClick = { navigateTab("scanner") },
                     icon = { Icon(Icons.Filled.PhotoCamera, "Scan", modifier = Modifier.size(22.dp)) },
                     label = { Text(AgroStrings.get("nav_scan", appLanguage), fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1) },
                     colors = NavigationBarItemDefaults.colors(
@@ -573,7 +592,7 @@ fun AppShell(
 
                 NavigationBarItem(
                     selected = activeRoute == "alerts",
-                    onClick = { navController.navigate("alerts") },
+                    onClick = { navigateTab("alerts") },
                     icon = {
                         BadgedBox(
                             badge = {
@@ -599,7 +618,7 @@ fun AppShell(
 
                 NavigationBarItem(
                     selected = activeRoute == "analytics",
-                    onClick = { navController.navigate("analytics") },
+                    onClick = { navigateTab("analytics") },
                     icon = { Icon(Icons.Filled.Analytics, "Analytics", modifier = Modifier.size(20.dp)) },
                     label = { Text(AgroStrings.get("nav_analytics", appLanguage), fontSize = 10.sp, maxLines = 1) },
                     colors = NavigationBarItemDefaults.colors(
@@ -927,6 +946,7 @@ fun DashboardScreen(viewModel: AgroViewModel, navController: NavController) {
     val plants by viewModel.plants.collectAsStateWithLifecycle()
     val selectedPlant by viewModel.selectedPlant.collectAsStateWithLifecycle()
     val sensorTelemetry by viewModel.latestSensorData.collectAsStateWithLifecycle()
+    val sensorHistory by viewModel.sensorHistory.collectAsStateWithLifecycle()
     val currentUser by viewModel.userState.collectAsStateWithLifecycle()
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val lastSyncedTime by viewModel.lastSyncedTimestamp.collectAsStateWithLifecycle()
@@ -1157,6 +1177,22 @@ fun DashboardScreen(viewModel: AgroViewModel, navController: NavController) {
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --- REAL-TIME & 7-DAY HISTORICAL TELEMETRY RECHARTS DASHBOARD ---
+        TelemetryRechartsCard(
+            sensorHistory = sensorHistory,
+            isOnline = isOnline,
+            lastSyncedTimestamp = lastSyncedTime,
+            onInjectSensorReading = {
+                viewModel.adminAddSensorReading(
+                    temperature = (24..35).random().toFloat() + 0.5f,
+                    humidity = (45..75).random().toFloat(),
+                    soilMoisture = (30..65).random().toFloat()
+                )
+            }
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -2629,7 +2665,7 @@ fun DashboardScreen(viewModel: AgroViewModel, navController: NavController) {
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.ArrowForward,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Forward details",
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)
@@ -3880,7 +3916,7 @@ fun PlantScannerScreen(
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            Divider(color = SoftGrass)
+                            HorizontalDivider(color = SoftGrass)
 
                             Spacer(modifier = Modifier.height(12.dp))
 
@@ -3892,7 +3928,7 @@ fun PlantScannerScreen(
                                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                             )
 
-                            Divider(color = SoftGrass)
+                            HorizontalDivider(color = SoftGrass)
 
                             Spacer(modifier = Modifier.height(8.dp))
 
@@ -3922,7 +3958,7 @@ fun PlantScannerScreen(
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
-                            Divider(color = SoftGrass)
+                            HorizontalDivider(color = SoftGrass)
                             Spacer(modifier = Modifier.height(14.dp))
 
                             // In-situ AI Accuracy Rating & Feedback Form
@@ -4416,7 +4452,7 @@ fun LeafMovementScreen(viewModel: AgroViewModel) {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Divider(color = SoftGrass)
+                    HorizontalDivider(color = SoftGrass)
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -4648,7 +4684,7 @@ fun HistoryScreen(viewModel: AgroViewModel) {
                                 Text(text = "Stress: ${log.stressProbability}%", color = AlertWarning, fontSize = 12.sp)
                             }
                         }
-                        Divider(color = SoftGrass.copy(alpha = 0.3f))
+                        HorizontalDivider(color = SoftGrass.copy(alpha = 0.3f))
                     }
                 }
             }
@@ -4733,7 +4769,7 @@ fun HistoryScreen(viewModel: AgroViewModel) {
                                 fontSize = 11.sp
                             )
                         }
-                        Divider(color = SoftGrass.copy(alpha = 0.3f))
+                        HorizontalDivider(color = SoftGrass.copy(alpha = 0.3f))
                     }
                 }
             }
@@ -4991,7 +5027,7 @@ fun AlertsScreen(viewModel: AgroViewModel) {
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
-                Divider(color = SoftGrass.copy(alpha = 0.5f))
+                HorizontalDivider(color = SoftGrass.copy(alpha = 0.5f))
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text("TEST PUSH NOTIFICATIONS DISPATCH:", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)

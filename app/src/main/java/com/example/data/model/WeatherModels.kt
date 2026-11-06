@@ -57,29 +57,29 @@ data class OpenMeteoResponse(
 data class OpenMeteoCurrent(
     val time: String = "",
     val interval: Int = 0,
-    @Json(name = "temperature_2m") val temperature2m: Float = 0f,
-    @Json(name = "relative_humidity_2m") val relativeHumidity2m: Float = 0f,
-    @Json(name = "apparent_temperature") val apparentTemperature: Float = 0f,
+    @field:Json(name = "temperature_2m") val temperature2m: Float = 0f,
+    @field:Json(name = "relative_humidity_2m") val relativeHumidity2m: Float = 0f,
+    @field:Json(name = "apparent_temperature") val apparentTemperature: Float = 0f,
     val precipitation: Float = 0f,
     val rain: Float = 0f,
-    @Json(name = "weather_code") val weatherCode: Int = 0,
-    @Json(name = "surface_pressure") val surfacePressure: Float = 1013.2f,
-    @Json(name = "wind_speed_10m") val windSpeed10m: Float = 0f,
-    @Json(name = "wind_direction_10m") val windDirection10m: Float = 0f,
-    @Json(name = "vapour_pressure_deficit") val vapourPressureDeficit: Float? = null,
-    @Json(name = "direct_radiation") val directRadiation: Float? = null,
-    @Json(name = "soil_temperature_0cm") val soilTemperature0cm: Float? = null,
-    @Json(name = "soil_moisture_0_to_1cm") val soilMoisture0to1cm: Float? = null
+    @field:Json(name = "weather_code") val weatherCode: Int = 0,
+    @field:Json(name = "surface_pressure") val surfacePressure: Float = 1013.2f,
+    @field:Json(name = "wind_speed_10m") val windSpeed10m: Float = 0f,
+    @field:Json(name = "wind_direction_10m") val windDirection10m: Float = 0f,
+    @field:Json(name = "vapour_pressure_deficit") val vapourPressureDeficit: Float? = null,
+    @field:Json(name = "direct_radiation") val directRadiation: Float? = null,
+    @field:Json(name = "soil_temperature_0cm") val soilTemperature0cm: Float? = null,
+    @field:Json(name = "soil_moisture_0_to_1cm") val soilMoisture0to1cm: Float? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class OpenMeteoHourly(
     val time: List<String> = emptyList(),
-    @Json(name = "temperature_2m") val temperature2m: List<Float> = emptyList(),
-    @Json(name = "relative_humidity_2m") val relativeHumidity2m: List<Float> = emptyList(),
-    @Json(name = "soil_temperature_0cm") val soilTemperature0cm: List<Float> = emptyList(),
-    @Json(name = "soil_moisture_0_to_1cm") val soilMoisture0to1cm: List<Float> = emptyList(),
-    @Json(name = "vapour_pressure_deficit") val vapourPressureDeficit: List<Float> = emptyList()
+    @field:Json(name = "temperature_2m") val temperature2m: List<Float> = emptyList(),
+    @field:Json(name = "relative_humidity_2m") val relativeHumidity2m: List<Float> = emptyList(),
+    @field:Json(name = "soil_temperature_0cm") val soilTemperature0cm: List<Float> = emptyList(),
+    @field:Json(name = "soil_moisture_0_to_1cm") val soilMoisture0to1cm: List<Float> = emptyList(),
+    @field:Json(name = "vapour_pressure_deficit") val vapourPressureDeficit: List<Float> = emptyList()
 )
 
 /**

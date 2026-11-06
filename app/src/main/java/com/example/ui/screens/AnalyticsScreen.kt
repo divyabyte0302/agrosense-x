@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.data.model.AppLanguage
+import com.example.ui.components.TelemetryRechartsCard
 import com.example.ui.theme.*
 import com.example.ui.translation.AgroStrings
 import com.example.ui.viewmodel.AgroViewModel
@@ -41,6 +42,9 @@ fun AnalyticsScreen(
     val plants by viewModel.plants.collectAsStateWithLifecycle()
     val allPredictions by viewModel.allPredictions.collectAsStateWithLifecycle()
     val latestSensor by viewModel.latestSensorData.collectAsStateWithLifecycle()
+    val sensorHistory by viewModel.sensorHistory.collectAsStateWithLifecycle()
+    val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
+    val lastSyncedTimestamp by viewModel.lastSyncedTimestamp.collectAsStateWithLifecycle()
     val liveWeather by viewModel.liveWeather.collectAsStateWithLifecycle()
     val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
     val isTamil = appLanguage == AppLanguage.TAMIL
@@ -379,6 +383,21 @@ fun AnalyticsScreen(
                                 }
                             }
                         }
+                    }
+
+                    item {
+                        TelemetryRechartsCard(
+                            sensorHistory = sensorHistory,
+                            isOnline = isOnline,
+                            lastSyncedTimestamp = lastSyncedTimestamp,
+                            onInjectSensorReading = {
+                                viewModel.adminAddSensorReading(
+                                    temperature = (24..35).random().toFloat() + 0.5f,
+                                    humidity = (45..75).random().toFloat(),
+                                    soilMoisture = (30..65).random().toFloat()
+                                )
+                            }
+                        )
                     }
                 }
 

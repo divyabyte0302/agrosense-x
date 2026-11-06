@@ -1,6 +1,7 @@
 package com.example.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
@@ -8,7 +9,12 @@ import com.squareup.moshi.JsonClass
 /**
  * Represent user authentication and profile status locally.
  */
-@Entity(tableName = "users")
+@Entity(
+    tableName = "users",
+    indices = [
+        Index(value = ["email"], unique = true)
+    ]
+)
 @JsonClass(generateAdapter = true)
 data class User(
     @PrimaryKey val id: String,
@@ -21,7 +27,13 @@ data class User(
 /**
  * Plant profiles registered by the farmer.
  */
-@Entity(tableName = "plants")
+@Entity(
+    tableName = "plants",
+    indices = [
+        Index(value = ["dateAdded"]),
+        Index(value = ["name"])
+    ]
+)
 @JsonClass(generateAdapter = true)
 data class Plant(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -50,7 +62,12 @@ data class Plant(
 /**
  * Real-time climate and soil sensor telemetry.
  */
-@Entity(tableName = "sensor_data")
+@Entity(
+    tableName = "sensor_data",
+    indices = [
+        Index(value = ["timestamp"])
+    ]
+)
 @JsonClass(generateAdapter = true)
 data class SensorData(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -63,7 +80,14 @@ data class SensorData(
 /**
  * Crop health diagnoses results from standard camera leaf scanning or API analysis.
  */
-@Entity(tableName = "predictions")
+@Entity(
+    tableName = "predictions",
+    indices = [
+        Index(value = ["plantId"]),
+        Index(value = ["timestamp"]),
+        Index(value = ["plantId", "timestamp"])
+    ]
+)
 @JsonClass(generateAdapter = true)
 data class Prediction(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -73,7 +97,9 @@ data class Prediction(
     val stressProbability: Int,
     val predictedIssue: String,
     val recommendation: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val modelVersion: String = "MobileNetV4-Agro-v2.1",
+    val isConfirmed: Boolean = false
 ) {
     val issueName: String get() = predictedIssue
     val confidence: Float get() = (100 - stressProbability).toFloat()
@@ -82,7 +108,14 @@ data class Prediction(
 /**
  * Continuous crop physiological stress tracking timeline.
  */
-@Entity(tableName = "health_history")
+@Entity(
+    tableName = "health_history",
+    indices = [
+        Index(value = ["plantId"]),
+        Index(value = ["timestamp"]),
+        Index(value = ["plantId", "timestamp"])
+    ]
+)
 @JsonClass(generateAdapter = true)
 data class HealthHistory(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -96,7 +129,14 @@ data class HealthHistory(
 /**
  * Automated warning notifications issued on critical thresholds.
  */
-@Entity(tableName = "alerts")
+@Entity(
+    tableName = "alerts",
+    indices = [
+        Index(value = ["isRead"]),
+        Index(value = ["timestamp"]),
+        Index(value = ["isRead", "timestamp"])
+    ]
+)
 @JsonClass(generateAdapter = true)
 data class PlantAlert(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -111,17 +151,24 @@ data class PlantAlert(
  */
 @JsonClass(generateAdapter = true)
 data class PredictionResponse(
-    @Json(name = "health_score") val healthScore: Int,
-    @Json(name = "stress_probability") val stressProbability: Int,
-    @Json(name = "predicted_issue") val predictedIssue: String,
-    @Json(name = "recommendation") val recommendation: String
+    @field:Json(name = "health_score") val healthScore: Int,
+    @field:Json(name = "stress_probability") val stressProbability: Int,
+    @field:Json(name = "predicted_issue") val predictedIssue: String,
+    @field:Json(name = "recommendation") val recommendation: String
 )
 
 /**
  * Farmer feedback rating the accuracy of AI's predictions and recommendations for scans.
  * Stored in Room locally and synced to the 'Feedback' collection in Firebase Firestore.
  */
-@Entity(tableName = "feedback")
+@Entity(
+    tableName = "feedback",
+    indices = [
+        Index(value = ["plantId"]),
+        Index(value = ["predictionId"]),
+        Index(value = ["timestamp"])
+    ]
+)
 @JsonClass(generateAdapter = true)
 data class ScanFeedback(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

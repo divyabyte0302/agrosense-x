@@ -19,7 +19,7 @@ import com.example.data.model.*
         PlantingCalendarEntry::class,
         CropCareReminder::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AgroDatabase : RoomDatabase() {
@@ -37,7 +37,7 @@ abstract class AgroDatabase : RoomDatabase() {
                     AgroDatabase::class.java,
                     "agrosense_database"
                 )
-                .fallbackToDestructiveMigration()
+                .fallbackToDestructiveMigration(true)
                 .build()
                 INSTANCE = instance
                 instance
