@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 
 interface FastApiService {
     @Multipart
-    @POST("predict")
+    @POST("api/v1/analyze")
     suspend fun predictPlantStress(
         @Part image: MultipartBody.Part
     ): PredictionResponse

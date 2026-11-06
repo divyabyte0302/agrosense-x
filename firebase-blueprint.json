@@ -1,0 +1,59 @@
+{
+  "projectId": "agrosense-x-production",
+  "database": "agro-precision-db",
+  "collections": {
+    "Users": {
+      "schema": {
+        "id": "string",
+        "email": "string",
+        "displayName": "string",
+        "phoneNumber": "string",
+        "farmLocation": "string",
+        "role": "string",
+        "status": "string",
+        "joinedTimestamp": "number",
+        "lastLoginTimestamp": "number"
+      }
+    },
+    "Plants": {
+      "schema": {
+        "id": "number",
+        "userId": "string",
+        "name": "string",
+        "variety": "string",
+        "datePlanted": "string",
+        "location": "string",
+        "notes": "string",
+        "healthScore": "number"
+      }
+    },
+    "Predictions": {
+      "schema": {
+        "id": "number",
+        "userId": "string",
+        "plantId": "number",
+        "imageUrl": "string",
+        "healthScore": "number",
+        "stressProbability": "number",
+        "predictedIssue": "string",
+        "recommendation": "string",
+        "timestamp": "number"
+      }
+    },
+    "Feedback": {
+      "schema": {
+        "id": "number",
+        "plantId": "number",
+        "predictionId": "number",
+        "predictedIssue": "string",
+        "recommendation": "string",
+        "predictionAccuracyRating": "number",
+        "recommendationAccuracyRating": "number",
+        "comments": "string",
+        "userId": "string",
+        "userEmail": "string",
+        "timestamp": "number"
+      }
+    }
+  }
+}
