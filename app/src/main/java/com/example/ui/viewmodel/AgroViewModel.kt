@@ -144,6 +144,10 @@ class AgroViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // --- RBAC & All Users State ---
+    val allUsers: StateFlow<List<User>> = repository.getAllUsersFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun login(email: String, password: String, onSuccess: () -> Unit) {
         if (email.isBlank() || password.isBlank()) {
             _authStateMessage.value = "Email and password cannot be empty."
@@ -164,15 +168,30 @@ class AgroViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun signUp(email: String, password: String, name: String, location: String, onSuccess: () -> Unit) {
-        if (email.isBlank() || password.isBlank() || name.isBlank() || location.isBlank()) {
-            _authStateMessage.value = "All fields are required to register."
+    fun signUp(
+        email: String,
+        password: String,
+        name: String,
+        phoneNumber: String = "",
+        location: String = "",
+        role: String = "FARMER",
+        onSuccess: () -> Unit
+    ) {
+        if (email.isBlank() || password.isBlank() || name.isBlank()) {
+            _authStateMessage.value = "Name, email, and password are required to register."
             return
         }
         viewModelScope.launch {
             _isAuthenticating.value = true
             _authStateMessage.value = null
-            val result = repository.registerUser(email, password, name, location)
+            val result = repository.registerUser(
+                email = email,
+                password = password,
+                displayName = name,
+                phoneNumber = phoneNumber,
+                farmLocation = location,
+                role = role
+            )
             if (result.isSuccess) {
                 _userState.value = result.getOrNull()
                 _isAuthenticating.value = false
@@ -199,6 +218,78 @@ class AgroViewModel(application: Application) : AndroidViewModel(application) {
                 _authStateMessage.value = result.exceptionOrNull()?.message ?: "Reset request failed."
             }
             _isAuthenticating.value = false
+        }
+    }
+
+    fun updateProfile(
+        name: String,
+        phoneNumber: String,
+        location: String,
+        onComplete: (Boolean, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = repository.updateCurrentUserProfile(name, phoneNumber, location)
+            if (result.isSuccess) {
+                onComplete(true, null)
+            } else {
+                onComplete(false, result.exceptionOrNull()?.message)
+            }
+        }
+    }
+
+    fun changePassword(
+        oldPass: String,
+        newPass: String,
+        onComplete: (Boolean, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = repository.changeCurrentUserPassword(oldPass, newPass)
+            if (result.isSuccess) {
+                onComplete(true, null)
+            } else {
+                onComplete(false, result.exceptionOrNull()?.message)
+            }
+        }
+    }
+
+    fun updateSettings(
+        notificationsEnabled: Boolean,
+        preferredLanguage: String
+    ) {
+        viewModelScope.launch {
+            repository.updateUserSettings(notificationsEnabled, preferredLanguage)
+        }
+    }
+
+    fun deleteAccount(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            val result = repository.deleteCurrentUserAccount()
+            if (result.isSuccess) {
+                _userState.value = null
+                onSuccess()
+            }
+        }
+    }
+
+    // --- Admin User Operations ---
+    fun adminSetUserStatus(userId: String, status: String, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val res = repository.adminSetUserStatus(userId, status)
+            onComplete(res.isSuccess)
+        }
+    }
+
+    fun adminSetUserRole(userId: String, role: String, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val res = repository.adminSetUserRole(userId, role)
+            onComplete(res.isSuccess)
+        }
+    }
+
+    fun adminDeleteUser(userId: String, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val res = repository.adminDeleteUser(userId)
+            onComplete(res.isSuccess)
         }
     }
 

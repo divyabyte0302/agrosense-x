@@ -177,6 +177,18 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
                 }
             }
 
+            composable("profile") {
+                if (userState != null) {
+                    UserProfileScreen(viewModel = viewModel, navController = navController)
+                }
+            }
+
+            composable("researcher") {
+                if (userState != null) {
+                    ResearcherScreen(viewModel = viewModel, navController = navController)
+                }
+            }
+
             composable("admin") {
                 if (userState != null) {
                     AdminScreen(viewModel = viewModel, navController = navController)
@@ -256,6 +268,7 @@ fun AppShell(
 ) {
     val unreadCount by viewModel.unreadAlertsCount.collectAsStateWithLifecycle()
     val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
+    val currentUser by viewModel.userState.collectAsStateWithLifecycle()
     val isTamil = appLanguage == AppLanguage.TAMIL
     var showMenu by remember { mutableStateOf(false) }
     var showAiAssistant by remember { mutableStateOf(false) }
@@ -473,13 +486,33 @@ fun AppShell(
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text(AgroStrings.get("admin_center", appLanguage), color = TextLight, fontSize = 13.sp) },
-                                leadingIcon = { Icon(Icons.Filled.AdminPanelSettings, null, tint = GlowingEmerald, modifier = Modifier.size(18.dp)) },
+                                text = { Text(if (appLanguage == AppLanguage.TAMIL) "சுயவிவரம் & பாதுகாப்பு" else "User Profile & Security", color = TextLight, fontSize = 13.sp, fontWeight = FontWeight.Bold) },
+                                leadingIcon = { Icon(Icons.Filled.Person, null, tint = GlowingEmerald, modifier = Modifier.size(18.dp)) },
                                 onClick = {
                                     showMenu = false
-                                    navController.navigate("admin")
+                                    navController.navigate("profile")
                                 }
                             )
+                            if (currentUser?.isResearcher == true) {
+                                DropdownMenuItem(
+                                    text = { Text(if (appLanguage == AppLanguage.TAMIL) "ஆராய்ச்சி மையம்" else "Researcher Hub", color = TextLight, fontSize = 13.sp, fontWeight = FontWeight.Bold) },
+                                    leadingIcon = { Icon(Icons.Filled.Biotech, null, tint = GlowingEmerald, modifier = Modifier.size(18.dp)) },
+                                    onClick = {
+                                        showMenu = false
+                                        navController.navigate("researcher")
+                                    }
+                                )
+                            }
+                            if (currentUser?.isAdmin == true) {
+                                DropdownMenuItem(
+                                    text = { Text(AgroStrings.get("admin_center", appLanguage), color = TextLight, fontSize = 13.sp, fontWeight = FontWeight.Bold) },
+                                    leadingIcon = { Icon(Icons.Filled.AdminPanelSettings, null, tint = GlowingEmerald, modifier = Modifier.size(18.dp)) },
+                                    onClick = {
+                                        showMenu = false
+                                        navController.navigate("admin")
+                                    }
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text(AgroStrings.get("settings", appLanguage), color = TextLight, fontSize = 13.sp) },
                                 leadingIcon = { Icon(Icons.Outlined.Build, null, tint = GlowingEmerald, modifier = Modifier.size(18.dp)) },
@@ -666,7 +699,9 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
     var farmLocation by remember { mutableStateOf("") }
+    var selectedRole by remember { mutableStateOf("FARMER") }
     var authMode by remember { mutableStateOf("LOGIN") } // LOGIN, SIGNUP, RESET
 
     val authMessage by viewModel.authStateMessage.collectAsStateWithLifecycle()
@@ -696,7 +731,7 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                 contentDescription = "AgroSense-X Logo",
                 tint = GlowingEmerald,
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(68.dp)
                     .shadow(16.dp, CircleShape)
             )
 
@@ -711,14 +746,14 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
             )
 
             Text(
-                text = "Pre-Symptomatic Stress Diagnostic Engine",
+                text = "Role-Based Agronomy Diagnostic Engine",
                 fontSize = 12.sp,
                 color = TextMuted,
                 modifier = Modifier.padding(top = 2.dp),
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Card Input Block
             Card(
@@ -735,23 +770,60 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                 ) {
                     Text(
                         text = when (authMode) {
-                            "LOGIN" -> "FARMER LOGIN"
-                            "SIGNUP" -> "REGISTER NEW PORTAL"
-                            else -> "RECOVER PASSWORD"
+                            "LOGIN" -> "VAULT SIGN IN"
+                            "SIGNUP" -> "CREATE NEW PORTAL ACCOUNT"
+                            else -> "RECOVER VAULT ACCESS"
                         },
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = GlowingEmerald,
                         letterSpacing = 1.sp
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     if (authMode == "SIGNUP") {
+                        // Role Selection Pills
+                        Text(
+                            text = "SELECT YOUR OPERATIONAL ROLE",
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf("FARMER", "RESEARCHER", "ADMIN").forEach { roleKey ->
+                                val isSelected = selectedRole == roleKey
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { selectedRole = roleKey },
+                                    label = { Text(roleKey, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = GlowingEmerald,
+                                        selectedLabelColor = DeepForestBg,
+                                        containerColor = DeepForestBg,
+                                        labelColor = TextLight
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = isSelected,
+                                        borderColor = SoftGrass,
+                                        selectedBorderColor = GlowingEmerald
+                                    ),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it },
-                            label = { Text("Farmer Full Name") },
+                            label = { Text("Full Name") },
                             leadingIcon = { Icon(Icons.Filled.Person, "Name", tint = GlowingEmerald) },
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -769,9 +841,29 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                         Spacer(modifier = Modifier.height(10.dp))
 
                         OutlinedTextField(
+                            value = phoneNumber,
+                            onValueChange = { phoneNumber = it },
+                            label = { Text("Phone Number (Optional)") },
+                            leadingIcon = { Icon(Icons.Filled.Phone, "Phone", tint = GlowingEmerald) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = GlowingEmerald,
+                                focusedLabelColor = GlowingEmerald,
+                                unfocusedBorderColor = SoftGrass,
+                                focusedTextColor = TextLight,
+                                unfocusedTextColor = TextLight
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("signup_phone"),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        OutlinedTextField(
                             value = farmLocation,
                             onValueChange = { farmLocation = it },
-                            label = { Text("Farm / Polyhouse Location") },
+                            label = { Text("Farm / Facility Location") },
                             leadingIcon = { Icon(Icons.Filled.LocationOn, "Location", tint = GlowingEmerald) },
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -792,7 +884,7 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text("Registered Email") },
+                        label = { Text("Registered Email Address") },
                         leadingIcon = { Icon(Icons.Filled.Email, "Email", tint = GlowingEmerald) },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
@@ -819,7 +911,7 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
-                            label = { Text("Vault Password") },
+                            label = { Text("Password (min 6 chars)") },
                             leadingIcon = { Icon(Icons.Filled.Lock, "Password", tint = GlowingEmerald) },
                             visualTransformation = PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(
@@ -844,16 +936,16 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                     }
 
                     authMessage?.let {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
                         Text(
                             text = it,
-                            color = if (it.contains("sent", ignoreCase = true)) GlowingEmerald else AlertCritical,
-                            fontSize = 13.sp,
+                            color = if (it.contains("sent", ignoreCase = true) || it.contains("success", ignoreCase = true)) GlowingEmerald else AlertCritical,
+                            fontSize = 12.sp,
                             textAlign = TextAlign.Center
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     if (isAuthenticating) {
                         CircularProgressIndicator(color = GlowingEmerald)
@@ -862,7 +954,15 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                             onClick = {
                                 when (authMode) {
                                     "LOGIN" -> viewModel.login(email, password, onAuthSuccess)
-                                    "SIGNUP" -> viewModel.signUp(email, password, name, farmLocation, onAuthSuccess)
+                                    "SIGNUP" -> viewModel.signUp(
+                                        email = email,
+                                        password = password,
+                                        name = name,
+                                        phoneNumber = phoneNumber,
+                                        location = farmLocation,
+                                        role = selectedRole,
+                                        onSuccess = onAuthSuccess
+                                    )
                                     "RESET" -> viewModel.resetPassword(email)
                                 }
                             },
@@ -870,7 +970,7 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp)
+                                .height(48.dp)
                                 .testTag("auth_submit_btn")
                         ) {
                             Text(
@@ -881,12 +981,12 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                                 },
                                 color = DeepForestBg,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
+                                fontSize = 15.sp
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Mode toggles
                     Row(
@@ -911,10 +1011,21 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                     }
 
                     if (authMode == "LOGIN") {
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         HorizontalDivider(color = SoftGrass.copy(alpha = 0.5f))
                         Spacer(modifier = Modifier.height(10.dp))
 
+                        Text(
+                            text = "DEMO ROLE QUICK SIGN-IN",
+                            color = TextMuted,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Farmer 1-tap sign-in
                         OutlinedButton(
                             onClick = {
                                 email = "farmer@agrosense.com"
@@ -925,11 +1036,51 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .testTag("quick_demo_login_btn")
+                                .testTag("quick_demo_farmer_btn")
                         ) {
-                            Icon(Icons.Filled.Key, contentDescription = null, tint = GlowingEmerald, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Filled.Person, contentDescription = null, tint = GlowingEmerald, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("1-Tap Demo Sign-in (farmer@agrosense.com)", color = GlowingEmerald, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Farmer: farmer@agrosense.com", color = GlowingEmerald, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Researcher 1-tap sign-in
+                        OutlinedButton(
+                            onClick = {
+                                email = "researcher@agrosense.org"
+                                password = "password123"
+                                viewModel.login("researcher@agrosense.org", "password123", onAuthSuccess)
+                            },
+                            border = BorderStroke(1.dp, GlowingEmerald.copy(alpha = 0.6f)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("quick_demo_researcher_btn")
+                        ) {
+                            Icon(Icons.Filled.Biotech, contentDescription = null, tint = GlowingEmerald, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Researcher: researcher@agrosense.org", color = GlowingEmerald, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Admin 1-tap sign-in
+                        OutlinedButton(
+                            onClick = {
+                                email = "admin@agrosense.com"
+                                password = "password123"
+                                viewModel.login("admin@agrosense.com", "password123", onAuthSuccess)
+                            },
+                            border = BorderStroke(1.dp, AlertCritical.copy(alpha = 0.6f)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("quick_demo_admin_btn")
+                        ) {
+                            Icon(Icons.Filled.AdminPanelSettings, contentDescription = null, tint = AlertCritical, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Admin: admin@agrosense.com", color = AlertCritical, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }

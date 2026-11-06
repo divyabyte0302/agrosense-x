@@ -11,11 +11,44 @@ interface AgroDao {
     @Query("SELECT * FROM users WHERE id = :userId LIMIT 1")
     fun getUserById(userId: String): Flow<User?>
 
+    @Query("SELECT * FROM users WHERE id = :userId LIMIT 1")
+    suspend fun getUserByIdOnce(userId: String): User?
+
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getUserByEmail(email: String): User?
 
+    @Query("SELECT * FROM users ORDER BY joinedTimestamp DESC")
+    fun getAllUsers(): Flow<List<User>>
+
+    @Query("SELECT * FROM users ORDER BY joinedTimestamp DESC")
+    suspend fun getAllUsersList(): List<User>
+
+    @Query("SELECT * FROM users WHERE role = :role ORDER BY joinedTimestamp DESC")
+    fun getUsersByRole(role: String): Flow<List<User>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: User)
+
+    @Query("UPDATE users SET status = :status WHERE id = :userId")
+    suspend fun updateUserStatus(userId: String, status: String)
+
+    @Query("UPDATE users SET role = :role WHERE id = :userId")
+    suspend fun updateUserRole(userId: String, role: String)
+
+    @Query("UPDATE users SET displayName = :displayName, phoneNumber = :phoneNumber, farmLocation = :farmLocation WHERE id = :userId")
+    suspend fun updateUserProfile(userId: String, displayName: String, phoneNumber: String, farmLocation: String)
+
+    @Query("UPDATE users SET passwordHash = :newPasswordHash WHERE id = :userId")
+    suspend fun updateUserPassword(userId: String, newPasswordHash: String)
+
+    @Query("UPDATE users SET notificationEnabled = :enabled, preferredLanguage = :language WHERE id = :userId")
+    suspend fun updateUserSettings(userId: String, enabled: Boolean, language: String)
+
+    @Query("UPDATE users SET lastLoginTimestamp = :timestamp WHERE id = :userId")
+    suspend fun updateLastLogin(userId: String, timestamp: Long)
+
+    @Query("DELETE FROM users WHERE id = :userId")
+    suspend fun deleteUserById(userId: String)
 
     @Query("DELETE FROM users")
     suspend fun clearUsers()

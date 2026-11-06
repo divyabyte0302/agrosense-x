@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +42,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 enum class AdminTab(val title: String, val icon: ImageVector) {
+    USERS("Users & RBAC", Icons.Filled.People),
     CROPS("Crops", Icons.Filled.Spa),
     SENSORS("Sensors", Icons.Filled.Sensors),
     SCANS("AI Scans", Icons.Filled.PhotoCamera),
@@ -59,6 +61,7 @@ fun AdminScreen(
     val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(AdminTab.CROPS) }
 
+    val allUsers by viewModel.allUsers.collectAsStateWithLifecycle()
     val plants by viewModel.plants.collectAsStateWithLifecycle()
     val sensorHistory by viewModel.sensorHistory.collectAsStateWithLifecycle()
     val allPredictions by viewModel.allPredictions.collectAsStateWithLifecycle()
@@ -74,6 +77,61 @@ fun AdminScreen(
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
             viewModel.clearAdminActionMessage()
         }
+    }
+
+    // Role Guard: Check if currentUser is Admin
+    val currentUser by viewModel.userState.collectAsStateWithLifecycle()
+    if (currentUser?.isAdmin != true) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Admin Console Restricted", color = AlertCritical, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GlowingEmerald)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = DeepForestBg)
+                )
+            },
+            containerColor = DeepForestBg
+        ) { padding ->
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = CardSurfaceDark),
+                    border = BorderStroke(1.dp, AlertCritical.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("unauthorized_admin_card")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Filled.Lock, contentDescription = null, tint = AlertCritical, modifier = Modifier.size(56.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text("Access Denied: Admin Privileges Required", color = AlertCritical, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "You are currently signed in as '${currentUser?.role ?: "GUEST"}'. Root configuration and user management requires the 'ADMIN' role.",
+                            color = TextLight,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(
+                            onClick = { navController.popBackStack() },
+                            colors = ButtonDefaults.buttonColors(containerColor = GlowingEmerald)
+                        ) {
+                            Text("Back to Application", color = DeepForestBg, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+        return
     }
 
     Scaffold(
@@ -197,6 +255,7 @@ fun AdminScreen(
                 AdminTab.values().forEach { tab ->
                     val isSelected = selectedTab == tab
                     val badgeCount = when (tab) {
+                        AdminTab.USERS -> allUsers.size
                         AdminTab.CROPS -> plants.size
                         AdminTab.SENSORS -> sensorHistory.size
                         AdminTab.SCANS -> allPredictions.size
@@ -258,6 +317,7 @@ fun AdminScreen(
                     .padding(horizontal = 16.dp)
             ) {
                 when (selectedTab) {
+                    AdminTab.USERS -> AdminUsersTab(users = allUsers, viewModel = viewModel)
                     AdminTab.CROPS -> AdminCropsTab(plants = plants, viewModel = viewModel)
                     AdminTab.SENSORS -> AdminSensorsTab(sensors = sensorHistory, viewModel = viewModel)
                     AdminTab.SCANS -> AdminScansTab(predictions = allPredictions, plants = plants, viewModel = viewModel)
@@ -276,6 +336,322 @@ fun AdminScreen(
                 }
             }
         }
+    }
+}
+
+// ==========================================
+// 0. USERS & RBAC MANAGEMENT TAB
+// ==========================================
+@Composable
+fun AdminUsersTab(
+    users: List<User>,
+    viewModel: AgroViewModel
+) {
+    val context = LocalContext.current
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedRoleFilter by remember { mutableStateOf("ALL") }
+    var userToEdit by remember { mutableStateOf<User?>(null) }
+    var userToDelete by remember { mutableStateOf<User?>(null) }
+
+    val filteredUsers = remember(users, searchQuery, selectedRoleFilter) {
+        users.filter { u ->
+            val matchesQuery = searchQuery.isBlank() ||
+                u.displayName.contains(searchQuery, ignoreCase = true) ||
+                u.email.contains(searchQuery, ignoreCase = true) ||
+                u.farmLocation.contains(searchQuery, ignoreCase = true)
+            val matchesRole = selectedRoleFilter == "ALL" || u.role.equals(selectedRoleFilter, ignoreCase = true)
+            matchesQuery && matchesRole
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Search and Filter Bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text("Search by name, email, or farm...") },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = GlowingEmerald) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = GlowingEmerald,
+                focusedLabelColor = GlowingEmerald,
+                unfocusedBorderColor = SoftGrass,
+                focusedTextColor = TextLight,
+                unfocusedTextColor = TextLight
+            ),
+            modifier = Modifier.fillMaxWidth().testTag("admin_user_search"),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Role filter pills
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf("ALL", "FARMER", "RESEARCHER", "ADMIN").forEach { roleKey ->
+                val isSelected = selectedRoleFilter == roleKey
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { selectedRoleFilter = roleKey },
+                    label = { Text(roleKey, fontSize = 11.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = GlowingEmerald,
+                        selectedLabelColor = DeepForestBg,
+                        containerColor = CardSurfaceDark,
+                        labelColor = TextLight
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = isSelected,
+                        borderColor = SoftGrass,
+                        selectedBorderColor = GlowingEmerald
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Text(
+            text = "REGISTERED ACCOUNTS (${filteredUsers.size})",
+            color = GlowingEmerald,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (filteredUsers.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No user accounts match current criteria.", color = TextMuted, fontSize = 13.sp)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(filteredUsers, key = { it.id }) { user ->
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CardSurfaceDark),
+                        border = BorderStroke(1.dp, if (user.status == "SUSPENDED") AlertCritical.copy(alpha = 0.6f) else SoftGrass),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().testTag("user_card_${user.id}")
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                when (user.userRole) {
+                                                    UserRole.ADMIN -> AlertCritical.copy(alpha = 0.2f)
+                                                    UserRole.RESEARCHER -> GlowingEmerald.copy(alpha = 0.2f)
+                                                    UserRole.FARMER -> SoftGrass.copy(alpha = 0.3f)
+                                                }
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = when (user.userRole) {
+                                                UserRole.ADMIN -> Icons.Filled.AdminPanelSettings
+                                                UserRole.RESEARCHER -> Icons.Filled.Biotech
+                                                UserRole.FARMER -> Icons.Filled.Person
+                                            },
+                                            contentDescription = null,
+                                            tint = when (user.userRole) {
+                                                UserRole.ADMIN -> AlertCritical
+                                                UserRole.RESEARCHER -> GlowingEmerald
+                                                UserRole.FARMER -> TextLight
+                                            },
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(user.displayName, color = TextLight, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        Text(user.email, color = TextMuted, fontSize = 11.sp)
+                                    }
+                                }
+
+                                // Status badge
+                                Surface(
+                                    color = if (user.status == "ACTIVE") GlowingEmerald.copy(alpha = 0.15f) else AlertCritical.copy(alpha = 0.2f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, if (user.status == "ACTIVE") GlowingEmerald else AlertCritical)
+                                ) {
+                                    Text(
+                                        text = user.status,
+                                        color = if (user.status == "ACTIVE") GlowingEmerald else AlertCritical,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text("Role: ${user.role} • Farm: ${user.farmLocation.ifBlank { "Not set" }}", color = TextLight, fontSize = 12.sp)
+                            if (user.phoneNumber.isNotBlank()) {
+                                Text("Phone: ${user.phoneNumber}", color = TextMuted, fontSize = 11.sp)
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            HorizontalDivider(color = SoftGrass.copy(alpha = 0.4f))
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Action buttons: Toggle Status, Change Role, Delete
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Status toggle (Suspend / Activate)
+                                OutlinedButton(
+                                    onClick = {
+                                        val newStatus = if (user.status == "ACTIVE") "SUSPENDED" else "ACTIVE"
+                                        viewModel.adminSetUserStatus(user.id, newStatus) { success ->
+                                            if (success) {
+                                                Toast.makeText(context, "User status updated to $newStatus", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    border = BorderStroke(1.dp, if (user.status == "ACTIVE") AlertWarning else GlowingEmerald),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        text = if (user.status == "ACTIVE") "Suspend" else "Activate",
+                                        color = if (user.status == "ACTIVE") AlertWarning else GlowingEmerald,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+
+                                // Role selector trigger
+                                OutlinedButton(
+                                    onClick = { userToEdit = user },
+                                    border = BorderStroke(1.dp, GlowingEmerald.copy(alpha = 0.7f)),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Change Role", color = GlowingEmerald, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                }
+
+                                // Delete user button
+                                IconButton(
+                                    onClick = { userToDelete = user },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Delete User", tint = AlertCritical, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Role assignment dialog
+    userToEdit?.let { targetUser ->
+        var selectedRole by remember { mutableStateOf(targetUser.role) }
+        AlertDialog(
+            onDismissRequest = { userToEdit = null },
+            containerColor = CardSurfaceDark,
+            title = { Text("Assign User Role", color = GlowingEmerald, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Select RBAC privilege tier for ${targetUser.displayName}:", color = TextLight, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    listOf("FARMER", "RESEARCHER", "ADMIN").forEach { roleOption ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedRole = roleOption }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedRole == roleOption,
+                                onClick = { selectedRole = roleOption },
+                                colors = RadioButtonDefaults.colors(selectedColor = GlowingEmerald)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(roleOption, color = TextLight, fontSize = 13.sp, fontWeight = if (selectedRole == roleOption) FontWeight.Bold else FontWeight.Normal)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.adminSetUserRole(targetUser.id, selectedRole) { success ->
+                            if (success) {
+                                Toast.makeText(context, "Role updated to $selectedRole", Toast.LENGTH_SHORT).show()
+                                userToEdit = null
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = GlowingEmerald)
+                ) {
+                    Text("Apply Role", color = DeepForestBg, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { userToEdit = null }) {
+                    Text("Cancel", color = TextMuted)
+                }
+            }
+        )
+    }
+
+    // Delete user confirmation dialog
+    userToDelete?.let { targetUser ->
+        AlertDialog(
+            onDismissRequest = { userToDelete = null },
+            containerColor = CardSurfaceDark,
+            title = { Text("Delete User Account?", color = AlertCritical, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Are you sure you want to permanently delete account '${targetUser.email}' (${targetUser.displayName})? This cannot be undone.",
+                    color = TextLight,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.adminDeleteUser(targetUser.id) { success ->
+                            if (success) {
+                                Toast.makeText(context, "User account removed.", Toast.LENGTH_SHORT).show()
+                                userToDelete = null
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertCritical)
+                ) {
+                    Text("Delete Account", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { userToDelete = null }) {
+                    Text("Cancel", color = TextMuted)
+                }
+            }
+        )
     }
 }
 

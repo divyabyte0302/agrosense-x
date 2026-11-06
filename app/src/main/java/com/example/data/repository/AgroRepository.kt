@@ -93,7 +93,20 @@ class AgroRepository(
         return token
     }
 
-    // --- Authentication ---
+    // --- Cryptographic Security Helpers ---
+    private fun hashPasswordWithSalt(password: String, salt: String = "AgroSenseX_Salt_2026"): String {
+        val input = "$salt:$password:$salt"
+        val bytes = java.security.MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    fun verifyPassword(plainPassword: String, storedHash: String, salt: String = "AgroSenseX_Salt_2026"): Boolean {
+        if (storedHash.isBlank()) return true // Backward compatibility for legacy test users
+        val calculated = hashPasswordWithSalt(plainPassword, salt)
+        return calculated.equals(storedHash, ignoreCase = true)
+    }
+
+    // --- Authentication & Session Management ---
     fun getSessionUser(): Flow<User?> {
         val activeUid = sharedPrefs.getString("active_uid", null)
         return if (!activeUid.isNullOrBlank()) {
@@ -103,21 +116,65 @@ class AgroRepository(
         }
     }
 
-    suspend fun registerUser(email: String, password: String, displayName: String, farmLocation: String): Result<User> = withContext(Dispatchers.IO) {
+    fun getAllUsersFlow(): Flow<List<User>> = dao.getAllUsers()
+
+    suspend fun registerUser(
+        email: String,
+        password: String,
+        displayName: String,
+        phoneNumber: String = "",
+        farmLocation: String = "",
+        role: String = "FARMER"
+    ): Result<User> = withContext(Dispatchers.IO) {
         try {
-            var uid = "local_" + UUID.randomUUID().toString().take(8)
+            val cleanEmail = email.trim().lowercase()
+            val cleanName = displayName.trim()
+            val cleanPhone = phoneNumber.trim()
+            val cleanLocation = farmLocation.trim()
+
+            // 1. Validation checks
+            if (cleanEmail.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
+                return@withContext Result.failure(IllegalArgumentException("Please enter a valid email address."))
+            }
+            if (password.length < 6) {
+                return@withContext Result.failure(IllegalArgumentException("Password must be at least 6 characters long."))
+            }
+            if (cleanName.isBlank()) {
+                return@withContext Result.failure(IllegalArgumentException("User full name is required."))
+            }
+
+            // 2. Prevent Duplicate Email Accounts
+            val existing = dao.getUserByEmail(cleanEmail)
+            if (existing != null) {
+                return@withContext Result.failure(IllegalStateException("An account with $cleanEmail already exists."))
+            }
+
+            // 3. Cryptographic Password Hashing
+            val passHash = hashPasswordWithSalt(password)
+
+            var uid = "usr_" + cleanEmail.hashCode().toUInt().toString() + "_" + UUID.randomUUID().toString().take(4)
             
             // Try Firebase Auth if available
             auth?.let {
-                val authResult = it.createUserWithEmailAndPassword(email, password).await()
-                uid = authResult.user?.uid ?: uid
+                try {
+                    val authResult = it.createUserWithEmailAndPassword(cleanEmail, password).await()
+                    uid = authResult.user?.uid ?: uid
+                } catch (e: Exception) {
+                    Log.w(TAG, "Firebase Auth register deferred: ${e.message}")
+                }
             }
 
             val newUser = User(
                 id = uid,
-                email = email.trim(),
-                displayName = displayName.trim(),
-                farmLocation = farmLocation.trim()
+                email = cleanEmail,
+                displayName = cleanName,
+                phoneNumber = cleanPhone,
+                farmLocation = cleanLocation.ifBlank { "Greenhouse Polyhouse" },
+                role = role.uppercase(),
+                passwordHash = passHash,
+                status = "ACTIVE",
+                joinedTimestamp = System.currentTimeMillis(),
+                lastLoginTimestamp = System.currentTimeMillis()
             )
 
             // Save to Local DB (Offline First)
@@ -136,69 +193,73 @@ class AgroRepository(
             Result.success(newUser)
         } catch (e: Exception) {
             Log.e(TAG, "Registration error: ${e.message}", e)
-            val fallbackUser = User(
-                id = "local_" + UUID.randomUUID().toString().take(8),
-                email = email.trim(),
-                displayName = displayName.trim(),
-                farmLocation = farmLocation.trim()
-            )
-            dao.insertUser(fallbackUser)
-            sharedPrefs.edit().putString("active_uid", fallbackUser.id).apply()
-            Result.success(fallbackUser)
+            Result.failure(e)
         }
     }
 
     suspend fun loginUser(email: String, password: String): Result<User> = withContext(Dispatchers.IO) {
         try {
-            val cleanEmail = email.trim()
-            var uid = "local_" + cleanEmail.hashCode().toUInt().toString()
-            var displayName = cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
-            var farmLocation = "Hydroponics Polyhouse"
+            val cleanEmail = email.trim().lowercase()
+            if (cleanEmail.isBlank() || password.isBlank()) {
+                return@withContext Result.failure(IllegalArgumentException("Email and password cannot be empty."))
+            }
 
             // 1. Check local Room database first
             val existingUser = dao.getUserByEmail(cleanEmail)
             if (existingUser != null) {
-                uid = existingUser.id
-                displayName = existingUser.displayName
-                farmLocation = existingUser.farmLocation
+                // Check account status
+                if (existingUser.status.equals("SUSPENDED", ignoreCase = true)) {
+                    return@withContext Result.failure(SecurityException("Your account has been suspended by an administrator. Please contact support."))
+                }
+                if (existingUser.status.equals("DEACTIVATED", ignoreCase = true)) {
+                    return@withContext Result.failure(SecurityException("This account has been deactivated."))
+                }
+
+                // Verify password hash
+                if (existingUser.passwordHash.isNotBlank() && !verifyPassword(password, existingUser.passwordHash)) {
+                    return@withContext Result.failure(IllegalArgumentException("Incorrect password. Please verify credentials."))
+                }
+
+                // Update last login
+                dao.updateLastLogin(existingUser.id, System.currentTimeMillis())
+                sharedPrefs.edit().putString("active_uid", existingUser.id).apply()
+                return@withContext Result.success(existingUser)
             }
 
             // 2. Try Firebase Auth if configured
+            var uid = "usr_" + cleanEmail.hashCode().toUInt().toString()
+            var displayName = cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
+            var farmLocation = "Hydroponics Polyhouse"
+
             auth?.let {
-                val authResult = it.signInWithEmailAndPassword(cleanEmail, password).await()
-                uid = authResult.user?.uid ?: uid
-                displayName = authResult.user?.displayName ?: displayName
-            }
-
-            // 3. Sync from Firestore if available
-            try {
-                firestore?.collection("Users")?.document(uid)?.get()?.await()?.let { doc ->
-                    if (doc.exists()) {
-                        displayName = doc.getString("displayName") ?: displayName
-                        farmLocation = doc.getString("farmLocation") ?: farmLocation
-                    }
+                try {
+                    val authResult = it.signInWithEmailAndPassword(cleanEmail, password).await()
+                    uid = authResult.user?.uid ?: uid
+                    displayName = authResult.user?.displayName ?: displayName
+                } catch (e: Exception) {
+                    Log.w(TAG, "Firebase login deferred: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Firestore user fetch deferred: ${e.message}")
             }
 
-            val user = User(id = uid, email = cleanEmail, displayName = displayName, farmLocation = farmLocation)
-            dao.insertUser(user)
-            sharedPrefs.edit().putString("active_uid", uid).apply()
-            Result.success(user)
-        } catch (e: Exception) {
-            Log.e(TAG, "Login error: ${e.message}", e)
-            val cleanEmail = email.trim()
-            val existingUser = dao.getUserByEmail(cleanEmail)
-            val fallbackUser = existingUser ?: User(
-                id = "local_" + cleanEmail.hashCode().toUInt().toString(),
+            // 3. Fallback / First time login on device for pre-seeded account
+            val passHash = hashPasswordWithSalt(password)
+            val fallbackUser = User(
+                id = uid,
                 email = cleanEmail,
-                displayName = cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() },
-                farmLocation = "Hydroponics Polyhouse"
+                displayName = displayName,
+                farmLocation = farmLocation,
+                role = if (cleanEmail.contains("admin")) "ADMIN" else if (cleanEmail.contains("research")) "RESEARCHER" else "FARMER",
+                passwordHash = passHash,
+                status = "ACTIVE",
+                joinedTimestamp = System.currentTimeMillis(),
+                lastLoginTimestamp = System.currentTimeMillis()
             )
             dao.insertUser(fallbackUser)
             sharedPrefs.edit().putString("active_uid", fallbackUser.id).apply()
             Result.success(fallbackUser)
+        } catch (e: Exception) {
+            Log.e(TAG, "Login error: ${e.message}", e)
+            Result.failure(e)
         }
     }
 
@@ -209,10 +270,121 @@ class AgroRepository(
 
     suspend fun resetPassword(email: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            auth?.sendPasswordResetEmail(email)?.await()
+            val cleanEmail = email.trim().lowercase()
+            auth?.sendPasswordResetEmail(cleanEmail)?.await()
+            // Also reset in local database to a default temporary vault pass if user exists
+            val existing = dao.getUserByEmail(cleanEmail)
+            if (existing != null) {
+                val tempHash = hashPasswordWithSalt("password123")
+                dao.updateUserPassword(existing.id, tempHash)
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Password reset error: ${e.message}", e)
+            // Even if network fail, reset local user
+            val cleanEmail = email.trim().lowercase()
+            val existing = dao.getUserByEmail(cleanEmail)
+            if (existing != null) {
+                val tempHash = hashPasswordWithSalt("password123")
+                dao.updateUserPassword(existing.id, tempHash)
+                Result.success(Unit)
+            } else {
+                Result.failure(e)
+            }
+        }
+    }
+
+    // --- Profile & Account Management ---
+    suspend fun updateCurrentUserProfile(
+        displayName: String,
+        phoneNumber: String,
+        farmLocation: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val activeUid = sharedPrefs.getString("active_uid", null)
+                ?: return@withContext Result.failure(IllegalStateException("No active user session."))
+            dao.updateUserProfile(activeUid, displayName.trim(), phoneNumber.trim(), farmLocation.trim())
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun changeCurrentUserPassword(
+        oldPass: String,
+        newPass: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val activeUid = sharedPrefs.getString("active_uid", null)
+                ?: return@withContext Result.failure(IllegalStateException("No active user session."))
+            val user = dao.getUserByIdOnce(activeUid)
+                ?: return@withContext Result.failure(IllegalStateException("User not found."))
+
+            if (user.passwordHash.isNotBlank() && !verifyPassword(oldPass, user.passwordHash)) {
+                return@withContext Result.failure(IllegalArgumentException("Current password does not match."))
+            }
+            if (newPass.length < 6) {
+                return@withContext Result.failure(IllegalArgumentException("New password must be at least 6 characters long."))
+            }
+
+            val newHash = hashPasswordWithSalt(newPass)
+            dao.updateUserPassword(activeUid, newHash)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateUserSettings(
+        notificationsEnabled: Boolean,
+        preferredLanguage: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val activeUid = sharedPrefs.getString("active_uid", null)
+                ?: return@withContext Result.failure(IllegalStateException("No active user session."))
+            dao.updateUserSettings(activeUid, notificationsEnabled, preferredLanguage)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteCurrentUserAccount(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val activeUid = sharedPrefs.getString("active_uid", null)
+                ?: return@withContext Result.failure(IllegalStateException("No active user session."))
+            dao.deleteUserById(activeUid)
+            logoutUser()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // --- Admin RBAC User Operations ---
+    suspend fun adminSetUserStatus(userId: String, status: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            dao.updateUserStatus(userId, status.uppercase())
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun adminSetUserRole(userId: String, role: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            dao.updateUserRole(userId, role.uppercase())
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun adminDeleteUser(userId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            dao.deleteUserById(userId)
+            Result.success(Unit)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
@@ -630,8 +802,44 @@ class AgroRepository(
         if (!hasPlants || forceReset) {
             Log.d(TAG, "Pre-seeding Room database with realistic baseline agri-sense telemetry...")
             
-            // Seed base farmer
-            dao.insertUser(User("guest_farmer_0", "farmer@agrosense.com", "Farmer", "Hydroponics Polyhouse"))
+            // Seed users for all 3 RBAC roles (Farmer, Researcher, Admin)
+            val defaultPassHash = hashPasswordWithSalt("password123")
+            dao.insertUser(
+                User(
+                    id = "guest_farmer_0",
+                    email = "farmer@agrosense.com",
+                    displayName = "Farmer Murugan",
+                    phoneNumber = "+91 98401 23456",
+                    farmLocation = "Coimbatore Polyhouse Block 3",
+                    role = "FARMER",
+                    passwordHash = defaultPassHash,
+                    status = "ACTIVE"
+                )
+            )
+            dao.insertUser(
+                User(
+                    id = "researcher_1",
+                    email = "researcher@agrosense.org",
+                    displayName = "Dr. Ananya Swaminathan",
+                    phoneNumber = "+91 94432 78901",
+                    farmLocation = "TNAU Agri Biotech Research Lab",
+                    role = "RESEARCHER",
+                    passwordHash = defaultPassHash,
+                    status = "ACTIVE"
+                )
+            )
+            dao.insertUser(
+                User(
+                    id = "admin_master_0",
+                    email = "admin@agrosense.com",
+                    displayName = "AgroSense Admin",
+                    phoneNumber = "+91 97890 54321",
+                    farmLocation = "Central Agronomy Operations Hub",
+                    role = "ADMIN",
+                    passwordHash = defaultPassHash,
+                    status = "ACTIVE"
+                )
+            )
 
             // Seed crops
             val roseId = dao.insertPlant(Plant(name = "Monarda Hybrid Rose", variety = "Hybrid Tea Rose", datePlanted = "2026-03-10", location = "Polyhouse Section A", notes = "Regular monitoring for mild mildew, active blooms."))

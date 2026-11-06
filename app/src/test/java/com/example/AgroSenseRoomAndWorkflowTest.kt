@@ -340,4 +340,91 @@ class AgroSenseRoomAndWorkflowTest {
         val prunedCount = dao.pruneOldSensorData(cutoff)
         assertTrue("Should prune records older than cutoff (> 40 records)", prunedCount > 40)
     }
+
+    @Test
+    fun testUserRbacAndAccountManagement() = runBlocking {
+        // 1. Insert Farmer
+        val farmer = User(
+            id = "farmer_01",
+            email = "farmer.ram@agrosense.org",
+            displayName = "Ram Kumar",
+            phoneNumber = "+91 98401 11223",
+            farmLocation = "Coimbatore Zone 2",
+            role = "FARMER",
+            passwordHash = "hash_farmer_123",
+            status = "ACTIVE"
+        )
+        dao.insertUser(farmer)
+
+        // 2. Insert Researcher
+        val researcher = User(
+            id = "researcher_01",
+            email = "dr.swami@tnau.ac.in",
+            displayName = "Dr. Swaminathan",
+            phoneNumber = "+91 94432 33445",
+            farmLocation = "TNAU Phenomics Lab",
+            role = "RESEARCHER",
+            passwordHash = "hash_researcher_123",
+            status = "ACTIVE"
+        )
+        dao.insertUser(researcher)
+
+        // 3. Insert Admin
+        val admin = User(
+            id = "admin_01",
+            email = "admin@agrosense.org",
+            displayName = "System Root",
+            phoneNumber = "+91 97890 55667",
+            farmLocation = "Agronomy HQ",
+            role = "ADMIN",
+            passwordHash = "hash_admin_123",
+            status = "ACTIVE"
+        )
+        dao.insertUser(admin)
+
+        // Verify counts and roles
+        val allUsers = dao.getAllUsersList()
+        assertEquals(3, allUsers.size)
+
+        val retrievedFarmer = dao.getUserByEmail("farmer.ram@agrosense.org")
+        assertNotNull(retrievedFarmer)
+        assertTrue(retrievedFarmer!!.isFarmer)
+        assertFalse(retrievedFarmer.isAdmin)
+        assertFalse(retrievedFarmer.isResearcher)
+
+        val retrievedResearcher = dao.getUserByEmail("dr.swami@tnau.ac.in")
+        assertNotNull(retrievedResearcher)
+        assertTrue(retrievedResearcher!!.isResearcher)
+        assertFalse(retrievedResearcher.isAdmin)
+
+        val retrievedAdmin = dao.getUserByEmail("admin@agrosense.org")
+        assertNotNull(retrievedAdmin)
+        assertTrue(retrievedAdmin!!.isAdmin)
+        assertTrue(retrievedAdmin.isResearcher)
+        assertTrue(retrievedAdmin.isFarmer)
+
+        // 4. Update Profile
+        dao.updateUserProfile("farmer_01", "Ram Kumar Updated", "+91 98401 99999", "Coimbatore Polyhouse Block 7")
+        val updatedFarmer = dao.getUserByIdOnce("farmer_01")
+        assertEquals("Ram Kumar Updated", updatedFarmer?.displayName)
+        assertEquals("+91 98401 99999", updatedFarmer?.phoneNumber)
+        assertEquals("Coimbatore Polyhouse Block 7", updatedFarmer?.farmLocation)
+
+        // 5. Suspend User Account
+        dao.updateUserStatus("farmer_01", "SUSPENDED")
+        val suspendedFarmer = dao.getUserByIdOnce("farmer_01")
+        assertEquals("SUSPENDED", suspendedFarmer?.status)
+        assertFalse(suspendedFarmer!!.isActive)
+
+        // 6. Change Password Hash
+        dao.updateUserPassword("farmer_01", "new_salted_hash_999")
+        val passUpdated = dao.getUserByIdOnce("farmer_01")
+        assertEquals("new_salted_hash_999", passUpdated?.passwordHash)
+
+        // 7. Delete User Account
+        dao.deleteUserById("farmer_01")
+        val deletedFarmer = dao.getUserByIdOnce("farmer_01")
+        assertNull(deletedFarmer)
+        assertEquals(2, dao.getAllUsersList().size)
+    }
 }
