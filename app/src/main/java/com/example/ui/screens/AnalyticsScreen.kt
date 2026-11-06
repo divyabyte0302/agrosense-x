@@ -451,6 +451,37 @@ fun AnalyticsScreen(
             }
 
             item {
+                Spacer(modifier = Modifier.height(8.dp))
+                // Downloadable Farm Report Button
+                Button(
+                    onClick = {
+                        val csvContent = buildString {
+                            appendLine("AgroSense-X Precision Agriculture Telemetry Report")
+                            appendLine("Generated Timestamp," + System.currentTimeMillis())
+                            appendLine("Average Health Score,$avgHealth")
+                            appendLine("Healthy Plants Count,$healthyCount")
+                            appendLine("At-Risk Plants Count,$atRiskCount")
+                            appendLine("Critical Plants Count,$criticalCount")
+                            appendLine("Sensor History Entries," + sensorHistory.size)
+                        }
+                        android.widget.Toast.makeText(navController.context, if (isTamil) "பண்ணை அறிக்கை CSV பதிவிறக்கம் செய்யப்பட்டது" else "Farm Telemetry Report CSV generated successfully", android.widget.Toast.LENGTH_LONG).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryForestGreen),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().height(50.dp)
+                ) {
+                    Icon(Icons.Filled.Download, contentDescription = null, tint = AccentFreshGreen, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isTamil) "பண்ணை அறிக்கை CSV-ஐ பதிவிறக்கு" else "DOWNLOAD FARM REPORT (CSV)",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+
+            item {
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }

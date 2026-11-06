@@ -188,7 +188,7 @@ class AgroRepository(
                 displayName = cleanName,
                 phoneNumber = cleanPhone,
                 farmLocation = cleanLocation.ifBlank { "Greenhouse Polyhouse" },
-                role = role.uppercase(),
+                role = "FARMER",
                 passwordHash = passHash,
                 status = "ACTIVE",
                 joinedTimestamp = System.currentTimeMillis(),

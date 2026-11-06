@@ -114,7 +114,7 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("dashboard") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     AppShell(navController = navController, viewModel = viewModel, activeRoute = "home") {
                         DashboardScreen(viewModel = viewModel, navController = navController)
                     }
@@ -122,7 +122,7 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("scanner") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     AppShell(navController = navController, viewModel = viewModel, activeRoute = "scanner") {
                         PlantScannerScreen(viewModel = viewModel)
                     }
@@ -130,7 +130,7 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("movement") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     AppShell(navController = navController, viewModel = viewModel, activeRoute = "movement") {
                         LeafMovementScreen(viewModel = viewModel)
                     }
@@ -138,7 +138,7 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("history") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     AppShell(navController = navController, viewModel = viewModel, activeRoute = "history") {
                         HistoryScreen(viewModel = viewModel)
                     }
@@ -146,7 +146,7 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("advisor") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     AppShell(navController = navController, viewModel = viewModel, activeRoute = "advisor") {
                         FarmerAdvisorScreen(viewModel = viewModel)
                     }
@@ -154,7 +154,7 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("alerts") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     AppShell(navController = navController, viewModel = viewModel, activeRoute = "alerts") {
                         AlertsScreen(viewModel = viewModel)
                     }
@@ -162,7 +162,7 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("feedback") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     AppShell(navController = navController, viewModel = viewModel, activeRoute = "feedback") {
                         FeedbackScreen(viewModel = viewModel, navController = navController)
                     }
@@ -170,7 +170,7 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("settings") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     AppShell(navController = navController, viewModel = viewModel, activeRoute = "settings") {
                         SettingsScreen(viewModel = viewModel, navController = navController)
                     }
@@ -178,25 +178,25 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("profile") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     UserProfileScreen(viewModel = viewModel, navController = navController)
                 }
             }
 
             composable("researcher") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("RESEARCHER", "ADMIN"), navController = navController) {
                     ResearcherScreen(viewModel = viewModel, navController = navController)
                 }
             }
 
             composable("admin") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("ADMIN"), navController = navController) {
                     AdminScreen(viewModel = viewModel, navController = navController)
                 }
             }
 
             composable("crop_calendar") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     AppShell(navController = navController, viewModel = viewModel, activeRoute = "crop_calendar") {
                         CropPlantingCalendarScreen(viewModel = viewModel, navController = navController)
                     }
@@ -204,7 +204,7 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("plants") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     AppShell(navController = navController, viewModel = viewModel, activeRoute = "plants") {
                         MyPlantsScreen(viewModel = viewModel, navController = navController)
                     }
@@ -212,7 +212,7 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("analytics") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     AppShell(navController = navController, viewModel = viewModel, activeRoute = "analytics") {
                         AnalyticsScreen(viewModel = viewModel, navController = navController)
                     }
@@ -220,7 +220,7 @@ fun AgroSenseApp(viewModel: AgroViewModel) {
             }
 
             composable("knowledge") {
-                if (userState != null) {
+                AuthGuard(user = userState, allowedRoles = listOf("FARMER", "RESEARCHER", "ADMIN"), navController = navController) {
                     KnowledgeCenterScreen(navController = navController, viewModel = viewModel)
                 }
             }
@@ -783,38 +783,26 @@ fun AuthScreen(viewModel: AgroViewModel, onAuthSuccess: () -> Unit) {
                     Spacer(modifier = Modifier.height(14.dp))
 
                     if (authMode == "SIGNUP") {
-                        // Role Selection Pills
-                        Text(
-                            text = "SELECT YOUR OPERATIONAL ROLE",
-                            color = TextMuted,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
+                        // Secure Account Type Notice
+                        Surface(
+                            color = GlowingEmerald.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, GlowingEmerald.copy(alpha = 0.5f)),
                             modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            listOf("FARMER", "RESEARCHER", "ADMIN").forEach { roleKey ->
-                                val isSelected = selectedRole == roleKey
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { selectedRole = roleKey },
-                                    label = { Text(roleKey, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = GlowingEmerald,
-                                        selectedLabelColor = DeepForestBg,
-                                        containerColor = DeepForestBg,
-                                        labelColor = TextLight
-                                    ),
-                                    border = FilterChipDefaults.filterChipBorder(
-                                        enabled = true,
-                                        selected = isSelected,
-                                        borderColor = SoftGrass,
-                                        selectedBorderColor = GlowingEmerald
-                                    ),
-                                    modifier = Modifier.weight(1f)
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "🔒 SECURE FARMER REGISTRATION",
+                                    color = GlowingEmerald,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Public self-registration provisions a Farmer account with personalized farm & AI diagnostics. Researcher & Admin accounts require trusted administrator provisioning.",
+                                    color = TextLight,
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp
                                 )
                             }
                         }
@@ -1105,6 +1093,8 @@ fun DashboardScreen(viewModel: AgroViewModel, navController: NavController) {
     val latestPrediction by viewModel.latestPrediction.collectAsStateWithLifecycle()
     val activePlantingEntries by viewModel.activePlantingEntries.collectAsStateWithLifecycle()
     val activeReminders by viewModel.activeCareReminders.collectAsStateWithLifecycle()
+    val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
+    val isTamil = appLanguage == AppLanguage.TAMIL
 
     // Real-time weather & device location states
     val liveWeather by viewModel.liveWeather.collectAsStateWithLifecycle()
@@ -1191,6 +1181,31 @@ fun DashboardScreen(viewModel: AgroViewModel, navController: NavController) {
                         fontWeight = FontWeight.Medium
                     )
                 }
+
+                // Language Toggle Switch (EN / தமிழ்)
+                Surface(
+                    onClick = { viewModel.toggleAppLanguage() },
+                    color = Color.White.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, AccentFreshGreen.copy(alpha = 0.6f)),
+                    modifier = Modifier.testTag("dashboard_lang_toggle")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.Language, contentDescription = "Language", tint = AccentFreshGreen, modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = if (isTamil) "தமிழ்" else "EN",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
 
                 IconButton(
                     onClick = { navController.navigate("admin") },
@@ -5737,4 +5752,106 @@ fun SettingsScreen(viewModel: AgroViewModel, navController: NavController) {
             }
         }
     }
+}
+
+@Composable
+fun AuthGuard(
+    user: User?,
+    allowedRoles: List<String> = listOf("FARMER", "RESEARCHER", "ADMIN"),
+    navController: NavController,
+    content: @Composable () -> Unit
+) {
+    if (user == null) {
+        LaunchedEffect(Unit) {
+            navController.navigate("auth") {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = PrimaryForestGreen)
+        }
+        return
+    }
+
+    if (user.status.equals("SUSPENDED", ignoreCase = true) || user.status.equals("DEACTIVATED", ignoreCase = true)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Filled.Lock, contentDescription = "Suspended", tint = ErrorRed, modifier = Modifier.size(54.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Access Restricted",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryText
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Your account has been suspended or deactivated. Please contact support.",
+                    fontSize = 13.sp,
+                    color = SecondaryText,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = { navController.navigate("auth") { popUpTo(0) { inclusive = true } } },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryForestGreen)
+                ) {
+                    Text("Return to Sign In", color = Color.White)
+                }
+            }
+        }
+        return
+    }
+
+    val userRole = user.role.uppercase().trim()
+    val hasPermission = allowedRoles.any { role ->
+        when (role) {
+            "ADMIN" -> user.isAdmin || userRole == "ADMIN"
+            "RESEARCHER" -> user.isResearcher || userRole == "RESEARCHER" || userRole == "ADMIN"
+            "FARMER" -> user.isFarmer || userRole == "FARMER" || userRole == "ADMIN"
+            else -> userRole == role
+        }
+    }
+
+    if (!hasPermission) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Filled.Security, contentDescription = "Unauthorized", tint = WarningAmber, modifier = Modifier.size(54.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Unauthorized Access",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryText
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Your current role ($userRole) does not have permission to access this secure zone.",
+                    fontSize = 13.sp,
+                    color = SecondaryText,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = { navController.popBackStack() },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryForestGreen)
+                ) {
+                    Text("Go Back", color = Color.White)
+                }
+            }
+        }
+        return
+    }
+
+    content()
 }
