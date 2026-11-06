@@ -427,4 +427,64 @@ class AgroSenseRoomAndWorkflowTest {
         assertNull(deletedFarmer)
         assertEquals(2, dao.getAllUsersList().size)
     }
+
+    @Test
+    fun testEnvironmentalTelemetryThresholdMonitoring() = runBlocking {
+        // 1. Insert critical low moisture reading (< 30%)
+        val lowMoistureSensor = SensorData(
+            id = 1L,
+            temperature = 24.0f,
+            humidity = 55.0f,
+            soilMoisture = 18.5f,
+            timestamp = System.currentTimeMillis()
+        )
+        dao.insertSensorData(lowMoistureSensor)
+
+        val latest = dao.getAllSensorDataList(1).firstOrNull()
+        assertNotNull(latest)
+        assertEquals(18.5f, latest?.soilMoisture ?: 0f, 0.01f)
+
+        // Evaluate moisture threshold (< 30%)
+        val moistureThreshold = 30.0f
+        if (latest!!.soilMoisture < moistureThreshold) {
+            dao.insertAlert(
+                PlantAlert(
+                    message = "CRITICAL: Soil moisture deficit detected (${latest.soilMoisture}% < $moistureThreshold%) in Polyhouse Zone A.",
+                    severity = "CRITICAL"
+                )
+            )
+        }
+
+        val alertsAfterMoisture = dao.getAllAlertsList()
+        assertTrue("Should have generated critical moisture alert", alertsAfterMoisture.any { it.message.contains("moisture deficit") })
+
+        // 2. Insert high temperature reading (> 32°C)
+        val highTempSensor = SensorData(
+            id = 2L,
+            temperature = 36.8f,
+            humidity = 40.0f,
+            soilMoisture = 35.0f,
+            timestamp = System.currentTimeMillis() + 1000
+        )
+        dao.insertSensorData(highTempSensor)
+
+        val latestTemp = dao.getAllSensorDataList(1).firstOrNull()
+        assertNotNull(latestTemp)
+        assertEquals(36.8f, latestTemp?.temperature ?: 0f, 0.01f)
+
+        // Evaluate temperature threshold (> 32°C)
+        val tempThreshold = 32.0f
+        if (latestTemp!!.temperature > tempThreshold) {
+            dao.insertAlert(
+                PlantAlert(
+                    message = "CRITICAL: Thermal heat hazard (${latestTemp.temperature}°C > $tempThreshold°C) in Polyhouse Zone A.",
+                    severity = "CRITICAL"
+                )
+            )
+        }
+
+        val alertsAfterTemp = dao.getAllAlertsList()
+        assertTrue("Should have generated thermal heat hazard alert", alertsAfterTemp.any { it.message.contains("Thermal heat hazard") })
+        assertEquals(2, alertsAfterTemp.size)
+    }
 }

@@ -11,26 +11,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = ForestGreen80,
-    secondary = SageGreen80,
-    tertiary = WarmSand80,
-    background = DeepForestBg,
-    surface = CardSurfaceDark,
-    onBackground = TextLight,
-    onSurface = TextLight,
+private val LightColorScheme = lightColorScheme(
+    primary = PrimaryForestGreen,
+    secondary = SecondaryLeafGreen,
+    tertiary = AccentFreshGreen,
+    background = MainBackground,
+    surface = CardBackground,
+    onBackground = PrimaryText,
+    onSurface = PrimaryText,
     onPrimary = Color.White,
     onSecondary = Color.White
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = ForestGreen80,
-    secondary = SageGreen80,
-    tertiary = WarmSand80,
-    background = DeepForestBg,
-    surface = CardSurfaceDark,
-    onBackground = TextLight,
-    onSurface = TextLight,
+private val DarkColorScheme = darkColorScheme(
+    primary = PrimaryForestGreen,
+    secondary = SecondaryLeafGreen,
+    tertiary = AccentFreshGreen,
+    background = MainBackground,
+    surface = CardBackground,
+    onBackground = PrimaryText,
+    onSurface = PrimaryText,
     onPrimary = Color.White,
     onSecondary = Color.White
 )
@@ -38,7 +38,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun MyApplicationTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Set to false to force our beautiful agricultural branding design!
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
@@ -46,7 +46,6 @@ fun MyApplicationTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 

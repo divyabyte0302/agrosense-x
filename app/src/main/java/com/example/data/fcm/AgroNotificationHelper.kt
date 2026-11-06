@@ -103,6 +103,28 @@ object AgroNotificationHelper {
     }
 
     /**
+     * Trigger notification when soil moisture exceeds excessive saturated levels (> 80%).
+     */
+    fun sendSoilMoistureHighAlert(context: Context, plantName: String, moisture: Float, threshold: Float) {
+        val title = "🌊 Saturated Soil Hazard: $plantName"
+        val message = "Soil moisture surged to ${"%.1f".format(moisture)}% (exceeding ${"%.0f".format(threshold)}% saturation threshold). Risk of root rot and anaerobic suffocation. Pause irrigation."
+        showNotification(context, title, message, notificationId = 2501 + (plantName.hashCode() % 500))
+    }
+
+    /**
+     * Trigger notification when environmental temperature exceeds thermal thresholds (high heat or chill).
+     */
+    fun sendTemperatureAlert(context: Context, locationOrPlant: String, temp: Float, isHigh: Boolean, threshold: Float) {
+        val title = if (isHigh) "🔥 Extreme Heat Hazard: $locationOrPlant" else "❄️ Cold Chill Warning: $locationOrPlant"
+        val message = if (isHigh) {
+            "Canopy temperature surged to ${"%.1f".format(temp)}°C (exceeds ${"%.0f".format(threshold)}°C critical limit). Deploy thermal shade netting and micro-misting."
+        } else {
+            "Ambient temperature plummeted to ${"%.1f".format(temp)}°C (below ${"%.0f".format(threshold)}°C chilling limit). Activate auxiliary polyhouse heating."
+        }
+        showNotification(context, title, message, notificationId = if (isHigh) 4001 + (locationOrPlant.hashCode() % 500) else 4501 + (locationOrPlant.hashCode() % 500))
+    }
+
+    /**
      * Trigger notification when stress probability exceeds 60%.
      * Clearly states the issue and the affected plant.
      */

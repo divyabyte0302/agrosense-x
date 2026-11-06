@@ -76,6 +76,8 @@ class AgroViewModel(application: Application) : AndroidViewModel(application) {
             repository.syncFcmToken()
             refreshLiveWeatherWithGps()
             startSensorTelemetryPolling()
+            // Enqueue WorkManager periodic monitoring worker for background telemetry surveillance
+            com.example.data.worker.TelemetryMonitorWorker.enqueuePeriodicWork(application)
         }
 
         // Automatic silent background synchronization upon reconnection
@@ -117,6 +119,8 @@ class AgroViewModel(application: Application) : AndroidViewModel(application) {
                 repository.fetchCloudSensorTelemetry()
                 repository.updateLastSyncedTime()
                 _lastSyncedTimestamp.value = repository.lastSyncedTimestamp
+                // Trigger immediate WorkManager telemetry check
+                com.example.data.worker.TelemetryMonitorWorker.enqueueImmediateWork(getApplication())
                 delay(800) // Brief UI feedback indicator
             } catch (e: Exception) {
                 Log.w(TAG, "Manual sync error: ${e.message}")
@@ -124,6 +128,10 @@ class AgroViewModel(application: Application) : AndroidViewModel(application) {
                 _isSyncing.value = false
             }
         }
+    }
+
+    fun triggerTelemetryWorkerImmediate() {
+        com.example.data.worker.TelemetryMonitorWorker.enqueueImmediateWork(getApplication())
     }
 
     // --- Authentication State ---

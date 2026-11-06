@@ -2,30 +2,42 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Eco Agri-Tech Forest Emerald Color Scheme
-val ForestGreen80 = Color(0xFF388E3C)
-val SageGreen80 = Color(0xFF81C784)
-val WarmSand80 = Color(0xFFE2D6BE)
+// AgroSense-X Professional Design System Palette
+val PrimaryForestGreen = Color(0xFF174D32)
+val SecondaryLeafGreen = Color(0xFF27834A)
+val AccentFreshGreen = Color(0xFF8BCB78)
+val LightGreenBackground = Color(0xFFEAF4E7)
+val MainBackground = Color(0xFFF7F9F5)
+val CardBackground = Color(0xFFFFFFFF)
+val PrimaryText = Color(0xFF26352A)
+val SecondaryText = Color(0xFF718074)
+val WarningAmber = Color(0xFFD9A441)
+val ErrorRed = Color(0xFFD9534F)
+val SuccessGreen = Color(0xFF27834A)
 
-val DarkGreen40 = Color(0xFF1B5E20)
-val DeepOlive40 = Color(0xFF2E7D32)
-val EcoGold40 = Color(0xFFE65100)
+// Compatibility Mappings for existing references across app
+val ForestGreen80 = PrimaryForestGreen
+val SageGreen80 = SecondaryLeafGreen
+val WarmSand80 = AccentFreshGreen
 
-// Brand Specific Palettes - Sleek Interface (Modern light organic design)
-val DeepForestBg = Color(0xFFF4F6F2)       // Soft Organic Background
-val CardSurfaceDark = Color(0xFFFFFFFF)     // Surface/Cards
-val TextLight = Color(0xFF111827)           // Main text (slate-900 style)
-val TextMuted = Color(0xFF64748B)           // Subdued slate-500 style
+val DarkGreen40 = PrimaryForestGreen
+val DeepOlive40 = SecondaryLeafGreen
+val EcoGold40 = WarningAmber
 
-val GlowingEmerald = Color(0xFF2E7D32)      // Deep Precision Green
-val LeafGreen = Color(0xFF4CAF50)           // Vibrant Foliage Green
-val AlertWarning = Color(0xFFF57C00)        // Amber/Orange Warning
-val AlertCritical = Color(0xFFD32F2F)       // Critical Red
-val AlertModerate = Color(0xFFFBC02D)       // Moderate Yellow
-val SoftGrass = Color(0xFFE8F5E9)           // Soft green light background
-val SoilMoistureBlue = Color(0xFF0288D1)    // Soil Moisture Blue Accent
-val TechCyan = Color(0xFF0097A7)            // AI / Sensor Cyan Accent
-val BiotechPurple = Color(0xFF7B1FA2)       // Biotechnology / Assay Accent
+val DeepForestBg = MainBackground
+val CardSurfaceDark = CardBackground
+val TextLight = PrimaryText
+val TextMuted = SecondaryText
+
+val GlowingEmerald = SecondaryLeafGreen
+val LeafGreen = AccentFreshGreen
+val AlertWarning = WarningAmber
+val AlertCritical = ErrorRed
+val AlertModerate = WarningAmber
+val SoftGrass = LightGreenBackground
+val SoilMoistureBlue = Color(0xFF0288D1)
+val TechCyan = Color(0xFF0097A7)
+val BiotechPurple = Color(0xFF7B1FA2)
 
 // Custom Gauge Colors
 val TempBg = Color(0xFFE7F0E5)

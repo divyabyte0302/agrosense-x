@@ -67,6 +67,24 @@ class AgroRepository(
             sharedPrefs.edit().putFloat("soil_moisture_threshold", value).apply()
         }
 
+    var soilMoistureHighThreshold: Float
+        get() = sharedPrefs.getFloat("soil_moisture_high_threshold", 80.0f)
+        set(value) {
+            sharedPrefs.edit().putFloat("soil_moisture_high_threshold", value).apply()
+        }
+
+    var temperatureHighThreshold: Float
+        get() = sharedPrefs.getFloat("temperature_high_threshold", 32.0f)
+        set(value) {
+            sharedPrefs.edit().putFloat("temperature_high_threshold", value).apply()
+        }
+
+    var temperatureLowThreshold: Float
+        get() = sharedPrefs.getFloat("temperature_low_threshold", 12.0f)
+        set(value) {
+            sharedPrefs.edit().putFloat("temperature_low_threshold", value).apply()
+        }
+
     val fcmDeviceToken: String?
         get() = sharedPrefs.getString("fcm_device_token", null)
 
@@ -393,7 +411,9 @@ class AgroRepository(
     fun getAllPlants(): Flow<List<Plant>> = dao.getAllPlants()
 
     suspend fun registerPlant(name: String, variety: String, datePlanted: String, location: String, notes: String): Long {
+        val activeUid = auth?.currentUser?.uid ?: sharedPrefs.getString("active_uid", "guest_farmer_0") ?: "guest_farmer_0"
         val newPlant = Plant(
+            userId = activeUid,
             name = name,
             variety = variety,
             datePlanted = datePlanted,
@@ -402,7 +422,11 @@ class AgroRepository(
         )
         val id = dao.insertPlant(newPlant)
         // Sync to cloud
-        firestore?.collection("Plants")?.document("plant_$id")?.set(newPlant.copy(id = id))
+        try {
+            firestore?.collection("Plants")?.document("plant_$id")?.set(newPlant.copy(id = id))
+        } catch (e: Exception) {
+            Log.w(TAG, "Plant cloud sync deferred: ${e.message}")
+        }
         return id
     }
 
@@ -485,7 +509,9 @@ class AgroRepository(
                 }
             }
 
+            val activeUid = auth?.currentUser?.uid ?: sharedPrefs.getString("active_uid", "guest_farmer_0") ?: "guest_farmer_0"
             val prediction = Prediction(
+                userId = activeUid,
                 plantId = plantId,
                 imageUrl = uploadedUrl ?: imageFile.absolutePath,
                 healthScore = predictionResponse.healthScore,
@@ -528,9 +554,11 @@ class AgroRepository(
             Result.success(prediction.copy(id = savedId))
         } catch (e: Exception) {
             Log.e(TAG, "Image Scan analysis error, using safe local Room fallback: ${e.message}", e)
+            val activeUid = auth?.currentUser?.uid ?: sharedPrefs.getString("active_uid", "guest_farmer_0") ?: "guest_farmer_0"
             // Even on unexpected exceptions, guarantee a valid prediction is saved to Room
             val fallbackResponse = simulateLeafPrediction()
             val fallbackPrediction = Prediction(
+                userId = activeUid,
                 plantId = plantId,
                 imageUrl = imageFile.absolutePath,
                 healthScore = fallbackResponse.healthScore,
@@ -546,7 +574,8 @@ class AgroRepository(
     private suspend fun uploadToFirebaseStorage(file: File): String? {
         return try {
             storage?.let {
-                val ref = it.reference.child("leaf_scans/${UUID.randomUUID()}.jpg")
+                val activeUid = auth?.currentUser?.uid ?: sharedPrefs.getString("active_uid", "guest_farmer_0") ?: "guest_farmer_0"
+                val ref = it.reference.child("leaf_scans/$activeUid/${UUID.randomUUID()}.jpg")
                 val stream = file.inputStream()
                 ref.putStream(stream).await()
                 ref.downloadUrl.await().toString()
@@ -660,24 +689,58 @@ class AgroRepository(
 
     // --- Threshold alerts & FCM Push Notifications ---
     suspend fun checkThresholdsForAlerts(sd: SensorData, plantNameOverride: String? = null) {
-        val threshold = soilMoistureThreshold
-        if (sd.soilMoisture < threshold) {
-            val targetPlantName = plantNameOverride ?: "Polyhouse Zone A"
-            val alertMsg = "Soil moisture dropped to ${"%.1f".format(sd.soilMoisture)}% (below ${"%.0f".format(threshold)}% threshold) for $targetPlantName. Immediate irrigation required."
+        val targetPlantName = plantNameOverride ?: "Polyhouse Zone A"
+        val moistureLowThreshold = soilMoistureThreshold
+        val moistureHighLimit = soilMoistureHighThreshold
+        val tempHighLimit = temperatureHighThreshold
+        val tempLowLimit = temperatureLowThreshold
+
+        // 1. Low Soil Moisture Alert (< threshold)
+        if (sd.soilMoisture < moistureLowThreshold) {
+            val alertMsg = "Soil moisture dropped to ${"%.1f".format(sd.soilMoisture)}% (below ${"%.0f".format(moistureLowThreshold)}% threshold) for $targetPlantName. Immediate irrigation required."
             val alert = PlantAlert(
                 message = alertMsg,
                 severity = "CRITICAL"
             )
             dao.insertAlert(alert)
-            // Push Notification to device system tray via FCM Notification Manager
-            AgroNotificationHelper.sendSoilMoistureAlert(context, targetPlantName, sd.soilMoisture, threshold)
-            
-            // Sync alert to Firestore
-            try {
-                firestore?.collection("Alerts")?.add(alert)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed syncing alert to Firestore: ${e.message}")
-            }
+            AgroNotificationHelper.sendSoilMoistureAlert(context, targetPlantName, sd.soilMoisture, moistureLowThreshold)
+            try { firestore?.collection("Alerts")?.add(alert) } catch (e: Exception) {}
+        }
+
+        // 2. High Soil Moisture Saturation Alert (> 80%)
+        if (sd.soilMoisture > moistureHighLimit) {
+            val alertMsg = "Soil moisture saturated at ${"%.1f".format(sd.soilMoisture)}% (above ${"%.0f".format(moistureHighLimit)}% limit) for $targetPlantName. Stop watering to prevent root rot."
+            val alert = PlantAlert(
+                message = alertMsg,
+                severity = "WARNING"
+            )
+            dao.insertAlert(alert)
+            AgroNotificationHelper.sendSoilMoistureHighAlert(context, targetPlantName, sd.soilMoisture, moistureHighLimit)
+            try { firestore?.collection("Alerts")?.add(alert) } catch (e: Exception) {}
+        }
+
+        // 3. High Temperature Hazard (> 32°C)
+        if (sd.temperature > tempHighLimit) {
+            val alertMsg = "High temperature hazard: ${"%.1f".format(sd.temperature)}°C (exceeds ${"%.0f".format(tempHighLimit)}°C) in $targetPlantName. Deploy shading and evaporative cooling."
+            val alert = PlantAlert(
+                message = alertMsg,
+                severity = "CRITICAL"
+            )
+            dao.insertAlert(alert)
+            AgroNotificationHelper.sendTemperatureAlert(context, targetPlantName, sd.temperature, isHigh = true, threshold = tempHighLimit)
+            try { firestore?.collection("Alerts")?.add(alert) } catch (e: Exception) {}
+        }
+
+        // 4. Low Temperature Chill Hazard (< 12°C)
+        if (sd.temperature < tempLowLimit) {
+            val alertMsg = "Low temperature chill risk: ${"%.1f".format(sd.temperature)}°C (below ${"%.0f".format(tempLowLimit)}°C) in $targetPlantName. Close polyhouse vents and engage heating."
+            val alert = PlantAlert(
+                message = alertMsg,
+                severity = "WARNING"
+            )
+            dao.insertAlert(alert)
+            AgroNotificationHelper.sendTemperatureAlert(context, targetPlantName, sd.temperature, isHigh = false, threshold = tempLowLimit)
+            try { firestore?.collection("Alerts")?.add(alert) } catch (e: Exception) {}
         }
     }
 

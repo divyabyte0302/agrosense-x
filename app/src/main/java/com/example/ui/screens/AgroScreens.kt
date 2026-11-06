@@ -578,7 +578,7 @@ fun AppShell(
                 }
             }
             NavigationBar(
-                containerColor = DeepForestBg,
+                containerColor = CardSurfaceDark,
                 tonalElevation = 8.dp
             ) {
                 NavigationBarItem(
@@ -587,9 +587,9 @@ fun AppShell(
                     icon = { Icon(Icons.Filled.Home, "Overview", modifier = Modifier.size(20.dp)) },
                     label = { Text(AgroStrings.get("nav_home", appLanguage), fontSize = 10.sp, maxLines = 1) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = DeepForestBg,
-                        selectedTextColor = GlowingEmerald,
-                        indicatorColor = GlowingEmerald,
+                        selectedIconColor = Color.White,
+                        selectedTextColor = PrimaryForestGreen,
+                        indicatorColor = PrimaryForestGreen,
                         unselectedIconColor = TextMuted,
                         unselectedTextColor = TextMuted
                     )
@@ -601,9 +601,9 @@ fun AppShell(
                     icon = { Icon(Icons.Filled.Eco, "Plants", modifier = Modifier.size(20.dp)) },
                     label = { Text(AgroStrings.get("nav_plants", appLanguage), fontSize = 10.sp, maxLines = 1) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = DeepForestBg,
-                        selectedTextColor = GlowingEmerald,
-                        indicatorColor = GlowingEmerald,
+                        selectedIconColor = Color.White,
+                        selectedTextColor = PrimaryForestGreen,
+                        indicatorColor = PrimaryForestGreen,
                         unselectedIconColor = TextMuted,
                         unselectedTextColor = TextMuted
                     )
@@ -615,9 +615,9 @@ fun AppShell(
                     icon = { Icon(Icons.Filled.PhotoCamera, "Scan", modifier = Modifier.size(22.dp)) },
                     label = { Text(AgroStrings.get("nav_scan", appLanguage), fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = DeepForestBg,
-                        selectedTextColor = GlowingEmerald,
-                        indicatorColor = GlowingEmerald,
+                        selectedIconColor = Color.White,
+                        selectedTextColor = PrimaryForestGreen,
+                        indicatorColor = PrimaryForestGreen,
                         unselectedIconColor = TextMuted,
                         unselectedTextColor = TextMuted
                     )
@@ -641,9 +641,9 @@ fun AppShell(
                     },
                     label = { Text(AgroStrings.get("nav_alerts", appLanguage), fontSize = 10.sp, maxLines = 1) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = DeepForestBg,
-                        selectedTextColor = GlowingEmerald,
-                        indicatorColor = GlowingEmerald,
+                        selectedIconColor = Color.White,
+                        selectedTextColor = PrimaryForestGreen,
+                        indicatorColor = PrimaryForestGreen,
                         unselectedIconColor = TextMuted,
                         unselectedTextColor = TextMuted
                     )
@@ -655,9 +655,9 @@ fun AppShell(
                     icon = { Icon(Icons.Filled.Analytics, "Analytics", modifier = Modifier.size(20.dp)) },
                     label = { Text(AgroStrings.get("nav_analytics", appLanguage), fontSize = 10.sp, maxLines = 1) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = DeepForestBg,
-                        selectedTextColor = GlowingEmerald,
-                        indicatorColor = GlowingEmerald,
+                        selectedIconColor = Color.White,
+                        selectedTextColor = PrimaryForestGreen,
+                        indicatorColor = PrimaryForestGreen,
                         unselectedIconColor = TextMuted,
                         unselectedTextColor = TextMuted
                     )
@@ -1148,25 +1148,25 @@ fun DashboardScreen(viewModel: AgroViewModel, navController: NavController) {
             .padding(16.dp)
             .verticalScroll(scrollState)
     ) {
-        // Welcoming farmer profile panel
+        // Welcoming farmer profile panel with #174D32 Forest Green background header
         Card(
-            colors = CardDefaults.cardColors(containerColor = CardSurfaceDark),
-            border = BorderStroke(1.dp, SoftGrass),
+            colors = CardDefaults.cardColors(containerColor = PrimaryForestGreen),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .background(SoftGrass, CircleShape),
+                        .background(Color.White.copy(alpha = 0.15f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Agriculture, "Farmer icon", tint = GlowingEmerald, modifier = Modifier.size(26.dp))
+                    Icon(Icons.Filled.Agriculture, "Farmer icon", tint = AccentFreshGreen, modifier = Modifier.size(26.dp))
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -1180,14 +1180,15 @@ fun DashboardScreen(viewModel: AgroViewModel, navController: NavController) {
                     }
                     Text(
                         text = "$greeting, ${currentUser?.displayName ?: "Farmer"}",
-                        color = TextLight,
+                        color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp
                     )
                     Text(
-                        text = "Farm Health Overview • Live Monitoring",
-                        color = GlowingEmerald,
-                        fontSize = 11.sp
+                        text = "AgroSense-X • Smart Farming & AI Insights",
+                        color = AccentFreshGreen,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
 
@@ -1198,10 +1199,32 @@ fun DashboardScreen(viewModel: AgroViewModel, navController: NavController) {
                     Icon(
                         imageVector = Icons.Filled.AdminPanelSettings,
                         contentDescription = "Admin Console",
-                        tint = GlowingEmerald
+                        tint = AccentFreshGreen
                     )
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Primary Action: Start AI Plant Scanner Button (#174D32 Forest Green)
+        Button(
+            onClick = { navController.navigate("scan") },
+            colors = ButtonDefaults.buttonColors(containerColor = PrimaryForestGreen),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .testTag("dashboard_scan_btn")
+        ) {
+            Icon(Icons.Filled.CameraAlt, contentDescription = null, tint = AccentFreshGreen, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "START AI PLANT SCANNER",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))

@@ -97,6 +97,7 @@ data class User(
 @JsonClass(generateAdapter = true)
 data class Plant(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String = "",
     val name: String,
     val variety: String,
     val datePlanted: String,
@@ -151,6 +152,7 @@ data class SensorData(
 @JsonClass(generateAdapter = true)
 data class Prediction(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String = "",
     val plantId: Long,
     val imageUrl: String,
     val healthScore: Int,

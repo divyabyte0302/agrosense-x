@@ -82,6 +82,9 @@ interface AgroDao {
     @Query("SELECT * FROM sensor_data ORDER BY timestamp DESC")
     fun getAllSensorData(): Flow<List<SensorData>>
 
+    @Query("SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT :limit")
+    suspend fun getAllSensorDataList(limit: Int = 50): List<SensorData>
+
     @Query("SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
     suspend fun getSensorDataPaged(limit: Int, offset: Int): List<SensorData>
 
@@ -168,6 +171,9 @@ interface AgroDao {
     // --- Alerts ---
     @Query("SELECT * FROM alerts ORDER BY timestamp DESC")
     fun getAllAlerts(): Flow<List<PlantAlert>>
+
+    @Query("SELECT * FROM alerts ORDER BY timestamp DESC")
+    suspend fun getAllAlertsList(): List<PlantAlert>
 
     @Query("SELECT COUNT(*) FROM alerts WHERE isRead = 0")
     fun getUnreadAlertsCount(): Flow<Int>
